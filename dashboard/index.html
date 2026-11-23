@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NYC 311 신고 살펴보기</title>
+<link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="brand">
+      <h1>뉴욕시 311 신고 살펴보기</h1>
+      <p class="lede">2025-11 ~ 2026-10 · 기본 분석 대상 신고 3,962,168건 · 실제 사건이 아닌 <b>접수된 신고 기록</b>입니다</p>
+    </div>
+    <div class="helpbar">
+      <button class="hb" data-help="gloss:">용어 도움말</button>
+      <button class="hb" data-help="agency:">기관 설명</button>
+      <button class="hb" data-help="criteria:">분석 기준</button>
+    </div>
+  </div>
+  <nav class="wrap tabs" role="tablist" aria-label="화면">
+    <button role="tab" data-tab="home"><span class="tn">★</span>먼저 알아볼 내용</button>
+    <button role="tab" data-tab="where"><span class="tn">1</span>어디서 어떤 신고가?</button>
+    <button role="tab" data-tab="when"><span class="tn">2</span>언제 늘어나나?</button>
+    <button role="tab" data-tab="places"><span class="tn">3</span>몇몇 장소에 몰리나?</button>
+    <button role="tab" data-tab="time"><span class="tn">4</span>종료까지 얼마나?</button>
+    <button role="tab" data-tab="more"><span class="tn">+</span>더 자세히 분석하기</button>
+  </nav>
+</header>
+
+<div class="filters" id="filters" hidden>
+  <div class="wrap">
+    <div class="frow">
+      <label><span>지역</span><select id="f-b"></select></label>
+      <label><span>세부 지역 <small>(1·2번 화면)</small></span><select id="f-cd"></select></label>
+      <label class="wide"><span>민원 유형</span><select id="f-p"></select></label>
+      <label><span>기관</span><select id="f-a"></select></label>
+      <label><span>기간</span><select id="f-m"></select></label>
+      <label><span>집중 주소 <button class="hbtn" data-help="focus" type="button">?</button></span><select id="f-x"><option value="0">포함</option><option value="1">제외</option></select></label>
+    </div>
+    <div class="frow2">
+      <div class="fstate" id="fstate"></div>
+      <div class="fbtns"><button id="f-copy" type="button" class="ghost">이 화면 링크 복사</button><button id="f-reset" type="button" class="ghost">조건 초기화</button></div>
+    </div>
+    <p class="fhint">선택한 조건은 화면을 옮겨도 유지됩니다. 세부 지역은 1·2번 화면에서만 쓰이고, 주소 순위는 「유형 + 기간」을 함께 고르면 쓸 수 없습니다. 각 화면 위에 적용 여부를 표시합니다.</p>
+  </div>
+</div>
+
+<main class="wrap">
+
+<section id="v-home" class="panel">
+  <div class="phead">
+    <h2>먼저 알아볼 내용</h2>
+    <p class="q">이 데이터는 무엇이고, 무엇을 알 수 있나요?</p>
+  </div>
+  <div id="home-data"></div>
+  <h3 class="sub-h">검증된 주요 발견</h3>
+  <div class="findings" id="home-findings"></div>
+  <div class="grid2">
+    <div class="card know"><h3 class="ch">이 화면들로 알 수 있는 것</h3><ul>
+      <li>지역·유형·기간별로 <b>신고가 얼마나 접수됐는지</b>와 그 구성</li>
+      <li>신고가 <b>몇몇 주소나 특정 날짜에 몰렸는지</b></li>
+      <li>접수부터 <b>종료 기록까지 걸린 시간</b>과, 같은 업무끼리 비교했을 때의 차이</li></ul></div>
+    <div class="card dontknow"><h3 class="ch">알 수 없는 것</h3><ul>
+      <li>실제로 문제가 얼마나 생겼는지, 얼마나 심각한지 (신고 수 ≠ 문제의 양)</li>
+      <li>문제가 실제로 해결·수리됐는지 (종료 기록 ≠ 해결)</li>
+      <li>차이의 원인 (날씨, 주택 형태, 기관 업무 방식 등은 이 자료에 없음)</li>
+      <li>매년 반복되는 현상인지 (1년 자료)</li></ul></div>
+  </div>
+  <h3 class="sub-h">처음이라면 이 순서로 보세요</h3>
+  <ol class="steps">
+    <li><button class="link" data-tab="where">1. 어디서 어떤 신고가?</button> 관심 지역을 고르고, 전체와 비교해 어떤 유형의 비중이 다른지 봅니다.</li>
+    <li><button class="link" data-tab="places">3. 몇몇 장소에 몰리나?</button> 그 차이가 몇몇 주소의 반복 때문인지 확인합니다.</li>
+    <li><button class="link" data-tab="when">2. 언제 늘어나나?</button> 특정 기간의 급증인지, 여러 달 이어지는 패턴인지 봅니다.</li>
+    <li><button class="link" data-tab="time">4. 종료까지 얼마나?</button> 같은 대상의 처리 현황을 같은 유형끼리 비교합니다.</li>
+  </ol>
+</section>
+
+<section id="v-where" class="panel" hidden>
+  <div class="phead"><h2><span class="badge">1</span>어디서 어떤 신고가 많나요?</h2>
+    <p class="q">지역 안에서 많은 유형과, 유형이 모인 지역을 구분해서 봅니다.</p>
+    <div id="where-applies"></div></div>
+  <div id="where-body"></div>
+</section>
+
+<section id="v-when" class="panel" hidden>
+  <div class="phead"><h2><span class="badge">2</span>언제 신고가 늘어나나요?</h2>
+    <p class="q">월·요일·시간대별 변화와, 특정 날의 급증을 전체와 비교합니다.</p>
+    <div id="when-applies"></div></div>
+  <div id="when-body"></div>
+</section>
+
+<section id="v-places" class="panel" hidden>
+  <div class="phead"><h2><span class="badge">3</span>몇몇 장소에 신고가 몰리나요?</h2>
+    <p class="q">여러 주소에 퍼진 신고인지, 일부 장소의 반복인지 봅니다.</p>
+    <div id="places-applies"></div></div>
+  <div id="places-body"></div>
+</section>
+
+<section id="v-time" class="panel" hidden>
+  <div class="phead"><h2><span class="badge">4</span>종료 기록까지 얼마나 걸리나요?</h2>
+    <p class="q">같은 유형끼리 비교하고, 비슷한 업무로 맞춰도 남는 차이를 확인합니다.</p>
+    <div id="time-applies"></div></div>
+  <div id="time-body"></div>
+</section>
+
+<section id="v-more" class="panel" hidden>
+  <div class="phead"><h2>더 자세히 분석하기</h2>
+    <p class="q">기본 화면을 이해하는 데 꼭 필요하지는 않은 추가 분석입니다. 위쪽 조건 막대와 관계없이 자체 설정을 씁니다.</p></div>
+  <nav class="subnav" id="more-nav">
+    <button data-more="rel" aria-selected="true">지표 사이의 관계·비슷한 것끼리 묶기</button>
+    <button data-more="ag" aria-selected="false">기관별 신고 모습</button>
+  </nav>
+  <div id="more-rel">
+    <p class="pnote">현재 선택과 무관한 전체 참고 결과입니다. 단위는 민원 유형(신고 1,000건 이상 111개)과 세부 지역(커뮤니티 보드 59곳)입니다. 「함께 움직인다」는 원인이라는 뜻이 아니고, 「묶기(군집)」는 구조가 약하면 대략적인 구분일 뿐입니다 <button class="hbtn" data-help="cluster">?</button></p>
+    <nav class="subnav" id="d-subnav" aria-label="관계 분석 화면">
+      <button data-pane="d1"><b>①</b> 함께 움직임 vs 원인</button>
+      <button data-pane="d2"><b>②</b> 지표끼리 함께 움직이는 정도</button>
+      <button data-pane="d3"><b>③</b> 비슷한 것끼리 묶기</button>
+      <button data-pane="d4"><b>④</b> 값의 분포</button>
+    </nav>
+    <div class="dctl" id="d-ctl"></div>
+    <div id="d-pane"></div>
+  </div>
+  <div id="more-ag" hidden>
+    <div class="dctl">
+      <label>기관 <select id="ag-a"></select></label>
+      <label>기간 <select id="ag-m"></select></label>
+      <label>집중 주소 <select id="ag-x"><option value="0">포함</option><option value="1">제외</option></select></label>
+    </div>
+    <p class="agline" id="ag-mission"></p>
+    <div class="grid2">
+      <figure class="card"><figcaption><span class="cq">이 기관에는 어떤 신고가 들어오나요?</span><span class="what">이 기관 신고 = 100% · 상위 7개 유형과 기타</span></figcaption><div id="ag-prob"></div></figure>
+      <figure class="card"><figcaption><span class="cq">어느 자치구에서 들어오나요?</span><span class="what">이 기관 신고의 자치구별 건수 (괄호 = 비중)</span></figcaption><div id="ag-boro"></div></figure>
+    </div>
+    <figure class="card"><figcaption><span class="cq">자치구마다 종료 기록까지 얼마나 걸렸나요?</span><span class="what">기관 안에서도 유형 구성이 자치구마다 달라, 차이를 성과로 읽지 않습니다</span></figcaption><div id="ag-time"></div></figure>
+  </div>
+</section>
+
+<footer>로컬 전용 · 외부로 데이터를 보내지 않습니다 · 집계 파일 <code>dashboard/data/</code></footer>
+</main>
+
+<div id="help-shade" class="shade" hidden></div>
+<aside id="help" class="drawer" hidden aria-label="도움말">
+  <div class="dhead"><nav id="help-tabs" class="subnav">
+    <button data-ht="gloss">용어</button><button data-ht="agency">기관</button><button data-ht="criteria">분석 기준</button></nav>
+    <button id="help-close" class="ghost" aria-label="닫기">닫기 ✕</button></div>
+  <div id="help-body"></div>
+</aside>
+
+<div id="tip" class="tip" role="tooltip" hidden></div>
+<script src="data/dashboard_data.js"></script>
+<script src="data/explore_data.js?v=3"></script>
+<script src="labels.js"></script>
+<script src="data/relations_data.js"></script>
+<script src="relations.js?v=3"></script>
+<script src="app.js?v=3"></script>
+</body>
+</html>
