@@ -266,7 +266,7 @@
   // per-view support: 'ok' | 'part' (with note) | 'no' (with note)
   const SUPPORT = {
     where: { cd: ["ok"], a: ["ok", "기관을 고르면 그 기관 신고만으로 비중을 계산"], p: ["ok", "선택 유형을 강조"], m: ["ok"], x: ["ok"] },
-    when: { cd: ["part", "세부 지역은 월별 그래프만"], a: ["part", "일별 그래프는 기관 조건 미지원"], p: ["part", "일별 그래프는 신고가 많은 15개 유형만"], m: ["part", "월별 그래프는 12개월을 모두 보여 주고 선택한 달을 강조"], x: ["part", "일별 그래프는 집중 주소 제외 미지원"] },
+    when: { cd: ["part", "세부 지역은 월별 그래프만"], a: ["part", "일별 그래프는 기관 조건 미지원"], p: ["part", "일별 그래프는 신고가 많은 15개 유형만 · 구성 열지도는 유형 조건 대신 그 유형 행을 강조"], m: ["part", "월별 그래프는 12개월을 모두 보여 주고 선택한 달을 강조"], x: ["part", "일별 그래프는 집중 주소 제외 미지원"] },
     places: { cd: ["no", "세부 지역 단위 주소 순위는 미지원 (자치구 단위로 표시)"], a: ["ok"], p: ["ok"], m: ["part", "주소 순위는 유형과 기간을 함께 고르면 미지원"], x: ["ok"] },
     time: { cd: ["no", "세부 지역 단위 처리 시간은 미지원 (자치구 단위로 표시)"], a: ["ok"], p: ["ok"], m: ["ok"], x: ["ok"] },
   };
@@ -421,6 +421,62 @@
   }
 
   // ======================= 2. WHEN =======================
+  // ---------- monthly composition (screen 2) ----------
+  // Optional view-only merge for the apparent 2026-07-29 reclassification (unconfirmed). Never changes the data or other screens.
+  let MERGE_WS = false;
+  const MERGE = {};
+  [["Water System", "상수도·상수도 유지보수 (통합 보기)"], ["Water Maintenance", "상수도·상수도 유지보수 (통합 보기)"],
+   ["Sewer", "하수·하수 유지보수 (통합 보기)"], ["Sewer Maintenance", "하수·하수 유지보수 (통합 보기)"]].forEach(([n, lab]) => { const i = P.indexOf(n); if (i >= 0) MERGE[i] = lab; });
+  const keyOf = p => (MERGE_WS && MERGE[p]) ? "M:" + MERGE[p] : p;
+  const keyLabel = k => typeof k === "string" && k.startsWith("M:") ? k.slice(2) : pShort(k);
+  function monthComposition() {
+    const cnt = new Map(), tot = new Array(12).fill(0);
+    const add = (p, m, n) => { const k = keyOf(p); if (!cnt.has(k)) cnt.set(k, new Array(12).fill(0)); cnt.get(k)[m] += n; tot[m] += n; };
+    if (st.cd >= 0) CBC.forEach(r => { if (r[0] === st.cd && (st.a < 0 || r[1] === st.a) && (!st.x || r[4] === 0)) add(r[2], r[3], r[6]); });
+    else C.forEach(r => { if ((st.b < 0 || r[1] === st.b) && (st.a < 0 || r[2] === st.a) && (!st.x || r[4] === 0)) add(r[3], r[0], r[8]); });
+    return { cnt, tot, N: tot.reduce((a, b) => a + b, 0) };
+  }
+  function monthCompCard(selName) {
+    const { cnt, tot, N } = monthComposition();
+    if (!N) return card({ q: "달마다 민원 구성이 어떻게 달라지나요?", body: emptyBox(NO_DATA) });
+    const yr = new Map([...cnt.entries()].map(([k, a]) => [k, a.reduce((x, y) => x + y, 0)]));
+    let rows = [...yr.entries()].sort((x, y) => y[1] - x[1]).slice(0, 12).map(x => x[0]);
+    const selKey = st.p >= 0 ? keyOf(st.p) : null;
+    if (selKey != null && !rows.includes(selKey) && yr.has(selKey)) rows.push(selKey);
+    const D = M.map((_, m) => tot[m] ? 0.5 * [...cnt.entries()].reduce((t, [k, a]) => t + Math.abs(a[m] / tot[m] - yr.get(k) / N), 0) : null);
+    let h = `<div class="tscroll"><table class="heat mheat"><thead><tr><th>유형</th>${M.map((_, m) => `<th class="${m === st.m ? "sel" : ""}">${mShort(m)}</th>`).join("")}<th class="num">1년 비중</th></tr></thead><tbody>`;
+    rows.forEach(k => {
+      const a = cnt.get(k), ys = yr.get(k) / N, isSel = k === selKey;
+      const head = typeof k === "number" ? `<th data-setp="${k}" title="${esc(P[k])} · 누르면 이 유형 선택">${esc(keyLabel(k))}</th>` : `<th title="보기 전용 통합 (확인되지 않은 대응)">${esc(keyLabel(k))}</th>`;
+      h += `<tr class="${isSel ? "sel" : ""}">${head}` + a.map((n, m) => {
+        if (!n) return `<td class="zero" data-tip="${esc(`<b>${keyLabel(k)} · ${mLabel(m)}</b><br>신고 없음`)}">0건</td>`;
+        const s = n / tot[m], lq = s / ys;
+        return `<td style="background:${lqColor(lq)}" class="${n < MIN_CELL ? "small" : ""}${m === st.m ? " selc" : ""}" data-tip="${esc(`<b>${keyLabel(k)} · ${mLabel(m)}</b><br>${fmtN(n)}건 = 그 달 신고의 ${(s * 100).toFixed(1)}%<br>1년 비중 ${(ys * 100).toFixed(1)}% → ${lqTxt(lq)}${n < MIN_CELL ? "<br>200건 미만: 값이 쉽게 튐" : ""}`)}">${(s * 100).toFixed(1)}%${n < MIN_CELL ? "*" : ""}</td>`;
+      }).join("") + `<td class="num">${(ys * 100).toFixed(1)}%</td></tr>`;
+    });
+    h += `<tr class="drow"><th title="1년 평균 구성과 같아지려면 그 달 신고의 몇 %가 다른 유형이어야 하는가">구성 차이 D</th>${D.map(v => `<td class="num">${v == null ? "-" : (v * 100).toFixed(0) + "%"}</td>`).join("")}<td></td></tr></tbody></table></div>`;
+    // each month's most distinctive type (>=200 reports, >=1% of the month, highest ratio to the yearly share)
+    const tops = M.map((_, m) => {
+      let best = null;
+      cnt.forEach((a, k) => { const n = a[m]; if (n < MIN_CELL || !tot[m] || n / tot[m] < 0.01) return; const lq = (n / tot[m]) / (yr.get(k) / N); if (!best || lq > best.lq) best = { k, n, lq, s: n / tot[m] }; });
+      return best;
+    });
+    const renamed = k => typeof k === "number" && ["Water Maintenance", "Sewer Maintenance", "Water System", "Sewer"].includes(P[k]);
+    const topList = tops.map((b, m) => b && b.lq >= 1.5 ? `<li><b>${mLabel(m)}</b> ${esc(keyLabel(b.k))} ${(b.s * 100).toFixed(1)}% (${lqTxt(b.lq)}, ${fmtN(b.n)}건)${renamed(b.k) ? ' <span class="tag warn">이름 변경 영향일 수 있음 — 위 체크 상자로 합쳐 보기</span>' : ""}</li>` : "").join("");
+    const dmax = D.reduce((b, v, i) => (v != null && v > (D[b] || 0)) ? i : b, 0), dmin = D.reduce((b, v, i) => (v != null && v < (D[b] == null ? 9 : D[b])) ? i : b, 0);
+    const reclassShown = rows.some(k => typeof k === "number" && MERGE[k]) || rows.some(k => typeof k === "string");
+    return card({ id: "when-mc", q: "달마다 민원 구성이 어떻게 달라지나요?",
+      what: `선택한 지역·기관 조건(${esc(selName)})에서, 각 달 신고 중 각 유형이 차지하는 비중입니다. 색은 그 비중이 1년 평균 비중의 몇 배인지입니다. 유형 이름을 누르면 그 유형을 선택합니다.`,
+      meta: meta("% (그 달 신고 중 비중) · 색 = 1년 평균 대비 배수", "같은 조건의 1년 전체 비중", `분모 = 그 달의 모든 유형 신고 (일부 시간만 수집된 첫날·마지막 날 포함) · 1년 ${fmtN(N)}건 · 유형 조건은 이 표에서 행 강조로만 씀`),
+      body: `<label class="tgl"><input type="checkbox" id="ws-merge"${MERGE_WS ? " checked" : ""}> 상수도·하수의 이름 변경(2026-07-29) 전후를 합쳐 보기 <small>(이 표에서만, 확인되지 않은 대응)</small></label>` +
+        legend([["rgb(42,120,214)", "1년 평균보다 낮음"], ["#f3f3f0", "1년 평균과 같음"], ["rgb(227,73,72)", "1년 평균보다 높음 (색은 0.25~4배로 제한)"]]) + h +
+        (topList ? `<h4 class="minih">달마다 가장 두드러진 유형 (200건 이상, 그 달 비중 1% 이상, 1년 대비 1.5배 이상)</h4><ul class="cand">${topList}</ul>` : ""),
+      read: `${T.f}구성이 1년 평균과 가장 다른 달은 ${mLabel(dmax)}(D ${(D[dmax] * 100).toFixed(0)}%), 가장 비슷한 달은 ${mLabel(dmin)}(${(D[dmin] * 100).toFixed(0)}%)입니다. ` +
+        `${T.w}구성비는 합이 100%라서 한 유형이 늘면 다른 유형의 비중은 자동으로 줄어듭니다(비중이 줄었다고 건수가 준 것은 아님). 특정 달에 크게 튄 칸은 한 주소나 특정 날 때문일 수 있으니 아래 일별 그래프와 3번 화면에서 확인하세요. 1년 자료라 매년 반복되는 계절성인지는 알 수 없습니다.`,
+      more: `<b>분류 변경으로 보이는 점</b>: 환경보호국(DEP)의 「상수도(Water System)」와 「하수(Sewer)」는 2026-07-29에 신고가 끝나고, 같은 내용(소화전, 누수, 탁한 물 등)이 「상수도 유지보수(Water Maintenance)」·「하수 유지보수(Sewer Maintenance)」로 이어집니다. 그래서 8~10월의 「유지보수」 비중이 높게 나오는 것은 민원 변화가 아니라 이름 변경의 영향입니다. 공식 공지로 확인하지 않았으므로 기본은 원래 유형으로 보여 주고, 위 체크 상자를 켜면 이 표에서만 합쳐 봅니다. 다른 화면과 원자료는 바뀌지 않습니다.<br>` +
+        `구성 차이 D = 0.5 × 합계(|그 달 유형 비중 − 1년 유형 비중|), 모든 유형 사용. 자세한 내용: <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성 보고서</a>` +
+        (reclassShown ? "" : "") });
+  }
   function renderWhen() {
     $("when-applies").innerHTML = appliesBar("when");
     const R = regionInfo();
@@ -502,7 +558,7 @@
         read: total ? `${T.f}가장 많은 날 하루가 이 기간 신고의 ${pct(topd[0][1], total)}입니다. 하루가 큰 몫을 차지하면 「특정 날의 급증」, 막대가 여러 달 고르게 높으면 「이어지는 패턴」입니다. ${T.w}급증 원인(날씨, 행사, 시스템)은 이 자료로 확인하지 않았습니다.` : "",
         more: "보통의 날 = 하루 전체가 포함된 날들의 하루 신고 수 중앙값. 첫날(2025-11-01)과 마지막 날(2026-10-31)은 일부 시간만 들어 있어 급증 목록에서 뺐습니다." });
     }
-    $("when-body").innerHTML = c1 + c2 + (c3 || "") + c4;
+    $("when-body").innerHTML = c1 + monthCompCard([R.name, st.a >= 0 ? aName(st.a) : ""].filter(Boolean).join(" · ") + (st.x ? " · 집중 주소 제외" : "")) + c2 + (c3 || "") + c4;
   }
 
   // ======================= 3. PLACES =======================
@@ -719,6 +775,7 @@
     ["corr", "두 지표가 함께 움직이는 정도", "상관관계 (스피어만 ρ)", "-1~1. 크다고 한쪽이 다른 쪽의 원인이라는 뜻이 아님."],
     ["cluster", "비슷한 특징끼리 묶어 보기", "군집 (K-Means)", "지표가 비슷한 지역·유형끼리 묶은 결과. 묶음의 구조가 약하면(실루엣 0.3 미만) 대략적인 구분으로만 읽음. 군집 번호는 이름표일 뿐 의미가 없음."],
     ["focus", "집중 주소", "focus address", "브롱크스 655 EAST 230 STREET(신고 47,105건, 대부분 주거 소음). 「제외」를 고르면 이 주소의 모든 신고를 뺌."],
+    ["reclass", "유형 이름 변경 (2026-07-29)", "Water System → Water Maintenance, Sewer → Sewer Maintenance", "환경보호국의 「상수도」·「하수」 유형이 2026-07-29에 끝나고 같은 내용이 「유지보수」 유형으로 이어짐. 공식 확인 전이라 원래 유형을 그대로 쓰고, 2번 화면의 월별 구성 표에서만 합쳐 볼 수 있음. 1년 합계로 유형을 비교할 때 두 이름이 나뉘어 있다는 점에 주의."],
     ["cd", "세부 지역", "커뮤니티 보드 (Community Board)", "뉴욕시 59개 행정 구역. 311 자료의 커뮤니티 보드 값 그대로 사용. 공원·공항 같은 공동 관리 구역과 값이 없는 신고는 세부 지역 화면에서 빠짐."],
   ];
   function renderHelp(tabKey, focusKey) {
@@ -744,8 +801,9 @@
         ["주소", "자치구 + address_key(공백·대소문자만 통일). 약어는 합치지 않음. 주소 없는 신고는 한 장소로 보지 않음", "-"],
         ["세부 지역", "표준 커뮤니티 보드 59곳(코드 01~18)", `${fmtN(CBC.reduce((t, x) => t + x[6], 0))}건`],
         ["집중 주소", "BRONX + 655 EAST 230 STREET", "47,105건"],
+        ["유형 이름 변경", "환경보호국 「상수도」·「하수」가 2026-07-29에 끝나고 「상수도 유지보수」·「하수 유지보수」로 이어짐(공식 확인 전). 원래 유형을 그대로 쓰고, 2번 화면 월별 구성 표에서만 합쳐 보기 가능", "-"],
       ]) + `<h4>지원하지 않는 것</h4><ul><li>여러 달을 묶은 기간 선택(백분위수를 정확히 합칠 수 없음)</li><li>주소 순위에서 유형+기간 동시 선택, 세부 지역 단위 주소 순위·처리 시간·요일/시간대</li><li>인구 대비 비율(별도 보고서 참고), 지도, 실시간 자료</li></ul>
-        <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a></p>`;
+        <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a> · <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성</a></p>`;
     }
     $("help-body").innerHTML = h; fixLinks($("help-body"));
     if (focusKey) { const el = $("gl-" + focusKey) || $("agc-" + focusKey); if (el) el.scrollIntoView({ block: "start" }); } else $("help-body").scrollTop = 0;
@@ -796,6 +854,7 @@
     if (t.dataset.tab) show(t.dataset.tab);
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeHelp(); });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "ws-merge") { MERGE_WS = e.target.checked; render(); } });
   window.addEventListener("hashchange", () => { const v0 = st.v; fromHash(); if (st.v !== v0) show(st.v); else render(); });
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
   fromHash(); fillAgCtl();

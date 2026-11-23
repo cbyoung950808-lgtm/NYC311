@@ -10,6 +10,7 @@ TITLES = {
     "composition_report": "지역별 민원 유형 구성",
     "repeat_address_report": "동일 주소의 반복 신고",
     "resolution_playbook_report": "자치구별 종료 시간: 비슷한 업무끼리 맞춘 비교",
+    "monthly_composition_report": "월별 민원 구성의 차이",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 

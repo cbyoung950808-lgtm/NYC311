@@ -50,5 +50,10 @@ window.PROBLEM_KO = {
   "Public Payphone Complaint": "공중전화",
   "Curb Condition": "연석 상태",
   "Traffic": "교통",
-  "Graffiti": "낙서(그래피티)"
+  "Graffiti": "낙서(그래피티)",
+  "Water Maintenance": "상수도 유지보수",
+  "Sewer Maintenance": "하수 유지보수",
+  "Illegal Fireworks": "불법 불꽃놀이",
+  "Standing Water": "고인 물",
+  "Hazardous Materials": "유해 물질",
 };
