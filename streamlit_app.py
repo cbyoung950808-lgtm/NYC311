@@ -4,6 +4,7 @@ The dashboard itself is a static HTML/JS page (dashboard/). This wrapper inlines
 pre-aggregated data into one page and shows it with st.components.v1.html. No raw data is included.
 Conditions are kept in the browser address (?s=...), so a copied link reopens the same view.
 """
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -22,8 +23,18 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 
-@st.cache_data(show_spinner="대시보드를 불러오는 중…")
-def build_page() -> str:
+def files_stamp() -> str:
+    """Fingerprint of the dashboard files, so the cached page is rebuilt whenever a file changes
+    (Streamlit Cloud pulls new commits without restarting the process, and st.cache_data would keep the old page)."""
+    h = hashlib.sha1()
+    for p in sorted(DASH.rglob("*")):
+        if p.is_file():
+            st_ = p.stat(); h.update(f"{p.relative_to(DASH)}|{st_.st_size}|{st_.st_mtime_ns}".encode())
+    return h.hexdigest()
+
+
+@st.cache_data(show_spinner="대시보드를 불러오는 중…", max_entries=2)
+def build_page(stamp: str) -> str:
     html = (DASH / "index.html").read_text(encoding="utf-8")
     css = (DASH / "style.css").read_text(encoding="utf-8")
     html = re.sub(r'<link rel="stylesheet" href="style\.css[^"]*">', lambda m: f"<style>{css}</style>", html)
@@ -35,7 +46,7 @@ def build_page() -> str:
     return re.sub(r'<script src="([^"]+)"></script>', inline, html)
 
 
-page = build_page()
+page = build_page(files_stamp())
 state = st.query_params.get("s", "")
 boot = f"<script>window.STREAMLIT_EMBED = true; window.INITIAL_STATE = {json.dumps(state)};</script>"
 page = page.replace("<head>", "<head>" + boot, 1)
