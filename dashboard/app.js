@@ -423,7 +423,7 @@
         read: `${T.w}이 그래프는 건수의 분포입니다. 인구·주택 수를 반영하지 않았고, 한 주소의 반복 신고가 큰 몫을 차지할 수 있습니다.`,
         next: goBtn("places", "이 유형이 몇몇 주소에 몰렸는지 보기") + goBtn("when", "언제 늘어나는지 보기") + goBtn("time", "종료 기록까지 걸린 시간 보기") });
     }
-    $("where-body").innerHTML = c1 + c2 + c3;
+    $("where-body").innerHTML = c1 + c2 + c3 + placeCard();
   }
 
   // ======================= 2. WHEN =======================
@@ -621,6 +621,41 @@
   }
 
   // ======================= 3. PLACES =======================
+  // ---------- requests around places (OSM; reports/place_centred_report.md) ----------
+  let PL_C = "bar";
+  function placeCard() {
+    const PL = window.PLACE_DATA; if (!PL) return "";
+    const LBL = { bar: "술집·클럽", station: "지하철·기차역", school: "학교", auto: "자동차 정비·세차", park: "공원·놀이터", hospital: "병원", cemetery: "묘지" };
+    const VERDICT = { bar: "장소·시간 모두 맞음", station: "장소는 뚜렷, 시간은 일부", school: "양보다 시간대가 다름", auto: "시간대가 맞음", park: "장소는 맞지만 시간 신호 없음", hospital: "관계 없음", cemetery: "관계 없음" };
+    const fx = v => v == null ? "-" : `×${(+v).toFixed(2)}`, pp = v => v == null ? "-" : `${v > 0 ? "+" : ""}${(+v).toFixed(1)}%p`, pc = v => v == null ? "-" : `${(+v).toFixed(1)}%`;
+    const pName = n => P.indexOf(n) >= 0 ? pShort(P.indexOf(n)) : (KO[n] || n);
+    // summary: one line per place = expected type with the largest composition ratio (n_near >= 300) + main time window for expected types pooled
+    // summary picks follow the report (one expected type and one time window per place, fixed before looking at results)
+    const PICK = { bar: ["Noise - Commercial", "Noise - Commercial"], station: ["Homeless Person Assistance", "Homeless Person Assistance"], school: ["Illegal Parking", "Illegal Parking"],
+      auto: ["Illegal Parking", "Illegal Parking"], park: ["Animal in a Park", "기대 유형"], hospital: ["Illegal Parking", null], cemetery: ["Illegal Dumping", null] };
+    const WIN1 = { school: "평일 등하교" };
+    const sumRows = Object.keys(LBL).map(c => {
+      const cs = PL.comp.find(r => r.cat === c && r.problem === PICK[c][0]);
+      const ts = PICK[c][1] && PL.time.find(r => r.cat === c && r.group === PICK[c][1] && (!WIN1[c] || r.window.startsWith(WIN1[c])));
+      return { cls: c === PL_C ? "hlrow" : "", attr: ` data-plc="${c}"`, cells: [esc(LBL[c]), cs ? `${esc(pName(cs.problem))} <b>${fx(cs.ratio)}</b> <small>(상위 30 주소 제외 ${fx(cs.ratio_excl)})</small>` : "-",
+        ts ? `${esc(ts.group === "기대 유형" ? "기대 유형 합계" : pName(ts.group))} · ${esc(ts.window)} <b>${pp(ts.diff_main)}</b>` : "-", esc(VERDICT[c])] }; });
+    const comp = PL.comp.filter(r => r.cat === PL_C);
+    const ct = table(["기대 유형", "100m 안 건수", "비중: 100m 안 / 100~400m", "구성 비율", "상대 밀도", "상위 30 주소 제외"],
+      comp.map(r => [esc(pName(r.problem)), fmtN(r.n_near), `${pc(r.share_near)} / ${pc(r.share_ring)}`, `<b>${fx(r.ratio)}</b>`, fx(r.dens_main), fx(r.dens_excl)]), { num: [1, 3, 4, 5] });
+    const tt = table(["유형", "시간대", "100m 안", "100~400m", "차이", "상위 30 주소 제외"],
+      PL.time.filter(r => r.cat === PL_C).map(r => ({ cls: r.group === "그 밖의 유형" ? "small" : "", cells: [esc(r.group === "기대 유형" ? "(기대 유형 합계)" : r.group === "그 밖의 유형" ? "(그 밖의 유형)" : pName(r.group)), esc(r.window), pc(r.win_near), pc(r.win_ring), `<b>${pp(r.diff_main)}</b>`, pp(r.diff_excl)] })), { num: [2, 3, 4, 5] });
+    const ex = PL.explore.filter(r => r.cat === PL_C).slice(0, 6);
+    const sel = `<label class="tgl">장소 <select id="pl-c">${Object.entries(LBL).map(([k, v]) => `<option value="${k}"${k === PL_C ? " selected" : ""}>${v}</option>`).join("")}</select></label>`;
+    return card({ id: "where-place", cls: "fixed", q: "장소 바로 옆에서는 어떤 신고가, 언제 더 많은가요?",
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과</span> 술집·학교·공원·역·병원·자동차 정비소·묘지(OpenStreetMap) <b>100m 안</b>의 신고를 <b>100~400m</b>의 신고와 비교합니다. 같은 동네 안에서 「바로 옆 vs 조금 떨어진 곳」을 비교하므로 지역 차이가 줄어듭니다 ${help("poi")}.`,
+      meta: meta("배, %p", "100m 안 vs 100~400m", `좌표가 있는 신고 ${fmtN(PL.meta.requests_with_coordinates)}건 · 장소 종류와 기대 유형·시간대는 결과를 보기 전에 정함`),
+      body: table(["장소", "대표 기대 유형: 100m 안 비중 ÷ 100~400m 비중", "장소에 맞는 시간대: 100m 안 − 100~400m", "판단"], sumRows, {}) + `<p class="note">행을 누르거나 아래에서 장소를 고르면 자세한 표가 바뀝니다.</p>` +
+        sel + `<h4 class="minih">${esc(LBL[PL_C])}: 기대 유형의 비중</h4>` + ct +
+        `<h4 class="minih">${esc(LBL[PL_C])}: 장소에 맞는 시간대인가?</h4>` + tt +
+        (ex.length ? details("예상하지 않았지만 바로 옆에서 많은 신고 (탐색용)", table(["유형", "100m 안 건수", "구성 비율"], ex.map(r => [esc(pName(r.problem)), fmtN(r.n_near), fx(r.ratio)]), { num: [1, 2] }) + `<p class="note">결과를 본 뒤 찾은 것이라 「발견」이 아니라 더 확인할 후보입니다.</p>`) : ""),
+      read: `${T.f}술집 바로 옆은 상업시설 소음 비중이 약 4배이고 그 소음은 금·토 밤에 더 몰립니다. 역 바로 옆은 노숙인 지원 신고가 약 4.6배입니다. 학교·자동차 정비소 주변 불법 주차는 양은 비슷하지만 등하교·평일 낮에 더 몰립니다. 병원·묘지는 관계가 없습니다. 신고가 가장 많은 30개 주소를 빼도 결론은 같습니다(학교 주변 「교통」만 한 주소의 영향). ${T.w}신고 좌표는 신고된 주소이며 소음·문제의 실제 발생원이 아닙니다. OSM에는 빠진 장소가 있을 수 있고, 장소 종류끼리 겹치는 영향(술집이 많은 곳에 역·식당도 많음)은 떼어 내지 않았습니다. 원인이 아니라 함께 나타나는 관계입니다.`,
+      more: "구성 비율 = 그 유형이 100m 안 신고에서 차지하는 비중 ÷ 100~400m에서의 비중. 상대 밀도 = (100m 안 밀도 ÷ 100~400m 밀도)를 그 유형과 모든 신고에 대해 각각 구해 나눈 값(합계 기준). 시간대 차이 = 그 시간대에 들어온 비율의 차이(100m 안 − 100~400m). 「그 밖의 유형」은 비교용. 자세한 내용: reports/place_centred_report.md" });
+  }
   // ---------- concentrated addresses: surroundings (OSM) and reporting pattern (reports/poi_report.md) ----------
   function poiCard() {
     const PD = window.POI_DATA; if (!PD) return "";
@@ -1085,6 +1120,8 @@
     if (t.dataset.tab) show(t.dataset.tab);
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeHelp(); });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "pl-c") { PL_C = e.target.value; render(); } });
+  document.addEventListener("click", e => { const tr = e.target.closest && e.target.closest("tr[data-plc]"); if (tr) { PL_C = tr.dataset.plc; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "wx-g") { WX_G = e.target.value; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "ws-merge") { MERGE_WS = e.target.checked; render(); } });
   window.addEventListener("hashchange", () => { const v0 = st.v; fromHash(); if (st.v !== v0) show(st.v); else render(); });
