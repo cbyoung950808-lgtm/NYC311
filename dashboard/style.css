@@ -307,3 +307,4 @@ table.heat td.selc { outline: 2px solid var(--accent); outline-offset: -2px; }
 table.heat tr.drow th, table.heat tr.drow td { background: #f7f7f4; font-size: 12px; color: var(--ink2); }
 .tgl { display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px; background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
 .tgl small { color: var(--warn); opacity: 0.8; }
+tr.hlrow td { background: color-mix(in srgb, var(--s1) 12%, transparent); font-weight: 600; }

@@ -56,4 +56,7 @@ window.PROBLEM_KO = {
   "Illegal Fireworks": "불법 불꽃놀이",
   "Standing Water": "고인 물",
   "Hazardous Materials": "유해 물질",
+  "Water System + Water Maintenance": "상수도(이름 변경 전후 합침)",
+  "Sewer + Sewer Maintenance": "하수(이름 변경 전후 합침)",
+  "Hazardous Materials + Hazardous Material": "유해 물질(이름 변경 전후 합침)",
 };

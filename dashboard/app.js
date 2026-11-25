@@ -644,6 +644,72 @@
   // ======================= 4. TIME =======================
   function delaySum(s) { return DL.filter(r => (s.m < 0 || r[0] === s.m) && (s.b < 0 || r[1] === s.b) && (s.a < 0 || r[2] === s.a) && (s.p < 0 || r[3] === s.p) && (!s.x || r[4] === 0))
     .reduce((t, r) => [t[0] + r[5], t[1] + r[6], t[2] + r[7], t[3] + r[8]], [0, 0, 0, 0]); }
+  // ---------- re-report after closure, and survival view of closure time (reports/rereport_report.md) ----------
+  function rereportCards() {
+    const RR = window.REREPORT_DATA; if (!RR) return "";
+    const pIdx = n => P.indexOf(n), pNm = n => pIdx(n) >= 0 ? pShort(pIdx(n)) : n;
+    const f1 = v => v == null ? "-" : `${v.toFixed(1)}%`, fh = v => v == null ? "-" : fmtHtxt(v);
+    const name = st.p >= 0 ? P[st.p] : null, tr = name && RR.by_type.find(r => r.problem === name);
+    const ov = RR.overall.find(r => r.unit === "request" && r.scope === "all"), og = RR.overall.find(r => r.unit === "group" && r.scope === "all");
+    const fixed = `<span class="fixtag">유형 조건만 반영 · 자치구·기관·기간·집중 주소 조건 미적용</span>`;
+    const def = `종결된 신고 뒤에 <b>같은 번지 주소·같은 유형</b>으로 새 신고가 들어온 비율입니다 ${help("rereport")}. N일 비율의 분모는 종결 후 N일을 끝까지 지켜볼 수 있었던 종결 건입니다(신규 접수 자료 끝 2026-10-31).`;
+    let body, read, q;
+    if (!tr) {
+      q = "종결 뒤 같은 주소에서 다시 신고가 들어오나요?";
+      const rows = RR.by_type.map(r => ({ attr: pIdx(r.problem) >= 0 ? ` data-setp="${pIdx(r.problem)}"` : "",
+        cells: [esc(pNm(r.problem)), fmtN(r.closures), f1(r.rate_1d), f1(r.rate_7d), `<b>${f1(r.rate_30d)}</b>`, f1(r.rate_30d_group)] }));
+      body = `<div class="kpis">${[["7일 안 재접수", f1(ov.rate_7d), `종결 ${fmtN(ov.n_7d)}건 기준 · 같은 날·장소·유형 묶음 단위 ${f1(og.rate_7d)}`],
+        ["30일 안 재접수", f1(ov.rate_30d), `묶음 단위 ${f1(og.rate_30d)}`]].map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
+        table(["유형 (종결 많은 15개)", "종결", "1일", "7일", "30일", "30일 (묶음 단위)"], rows, { num: [1, 2, 3, 4, 5] }) +
+        `<p class="note">행을 누르면 그 유형을 고르고, 종결 문구별 재접수율을 볼 수 있습니다.</p>`;
+      read = `${T.f}종결된 신고의 약 3분의 1이 7일 안에, 절반 가까이가 30일 안에 같은 주소·유형으로 다시 접수됩니다. 소음·난방은 높고 눈·얼음·거리 오염은 낮습니다. ${T.w}재접수는 해결 실패가 아닙니다. 같은 건물의 다른 세대, 새로 생긴 문제, 같은 사람의 재신고를 구분할 수 없습니다.`;
+    } else {
+      q = `${esc(pNm(name))}: 어떻게 종결된 신고 뒤에 다시 신고가 들어오나요?`;
+      const km = Object.fromEntries(RR.km.filter(r => r.problem === name && r.scope === "all").map(r => [r.category, r]));
+      const wr = RR.by_wording.filter(r => r.problem === name);
+      const mt = Object.fromEntries(RR.matched.filter(r => r.problem === name).map(r => [r.category, r]));
+      const REF = "조치·위반 발부 기록";
+      const rows = wr.map(r => { const m = mt[r.rcat], k = km[r.rcat];
+        return { cls: r.rcat === REF ? "hlrow" : "", cells: [esc(r.rcat) + (r.rcat === REF ? " <small>(비교 기준)</small>" : ""), fmtN(r.closures), f1(r.rate_1d), f1(r.rate_7d), f1(r.rate_30d),
+          k && k.median_days != null ? `${k.median_days.toFixed(1)}일` : "-",
+          m ? `${m.diff_main > 0 ? "+" : ""}${m.diff_main.toFixed(1)}%p <small>(${m.diff_min.toFixed(1)}~${m.diff_max.toFixed(1)})</small>` : (r.rcat === REF ? "기준" : "-"),
+          m ? esc(m.status) : "-"] }; });
+      const all = km["(전체)"];
+      body = `<div class="kpis">${[["7일 안 재접수", f1(tr.rate_7d), `종결 ${fmtN(tr.n_7d)}건 기준 · 묶음 단위 ${f1(tr.rate_7d_group)}`],
+        ["30일 안 재접수", f1(tr.rate_30d), `묶음 단위 ${f1(tr.rate_30d_group)}`],
+        ["재접수 절반 시점", all && all.median_days != null ? `${all.median_days.toFixed(1)}일` : "절반 미만", "생존 분석: 추적이 짧은 종결 건도 반영"]].map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
+        table(["종결 문구", "종결", "1일", "7일", "30일", "재접수 절반 시점", "맞춘 비교 30일 (조치 대비)", "판정"], rows, { num: [1, 2, 3, 4, 5, 6] }) +
+        (name === "HEAT/HOT WATER" ? details("증상별(난방 없음·온수 없음) 30일 재접수율", table(["증상", "종결 문구", "종결", "30일"], RR.heat_symptom.map(r => [esc(r.addl), esc(r.rcat), fmtN(r.closures), f1(r.rate_30d)]), { num: [2, 3] })) : "");
+      read = (name === "HEAT/HOT WATER" ? `${T.f}「출입·확인 실패」로 종결된 뒤에는 같은 조건의 「조치」보다 7일 안 재접수가 약 10%p 많고(더 빨리 다시 옴), 30일이면 차이가 약 5%p로 줄어듭니다. 「중복」 종결 뒤 재접수가 가장 많은 것은 이미 여러 세대가 신고 중인 건물이라는 표시로 보입니다. ` : "") +
+        `${T.w}종결 문구가 재접수의 원인이라는 뜻이 아닙니다. 어떤 건물·상황에서 그 문구가 나오는지가 함께 작용합니다. 재접수는 해결 실패가 아닙니다.`;
+    }
+    const c4 = card({ id: "time-c4", cls: "fixed", q, what: fixed + " " + def,
+      meta: meta("%, 일", tr ? "각 종결 문구 vs 「조치·위반 발부 기록」(맞춘 비교: 세부 유형·증상·접수 월·자치구가 같은 묶음끼리)" : "", `번지 주소의 종결 신고 ${fmtN(RR.counts.index_closures)}건 (2025-11 ~ 2026-10 접수)`),
+      body, read,
+      more: "재접수 = 종결 시각 이후 같은 자치구·주소 비교 키·유형으로 처음 들어온 새 신고. 종결 = 종료 시각이 접수 이후이고 2026-11-11 00:00(가정) 전. 묶음 단위 = 같은 날·장소·유형·세부 유형 묶음당 한 번(묶음의 마지막 종결, 열린 신고가 있는 묶음 제외). 판정: 신고·묶음 단위 × 집중 주소 포함·제외 4가지 모두 같은 방향이고 2.5%p 이상이면 「유지」. 재접수 절반 시점은 Kaplan-Meier(생존 분석)로, 자료 끝까지 재접수가 없던 종결도 그 시점까지 반영합니다. 자세한 내용: reports/rereport_report.md" });
+    // survival view of closure time
+    let c5 = "";
+    const ck = RR.closure_km;
+    if (name && ck.some(r => r.problem === name)) {
+      const rows = ck.filter(r => r.problem === name).map(r => ({ cls: r.borough === "(전체)" ? "hlrow" : "",
+        cells: [r.borough === "(전체)" ? "뉴욕시 전체" : esc(BKO[r.borough] || r.borough), fmtN(r.n), `${r.open_pct.toFixed(1)}%`, fh(r.closed_only_median_h), `<b>${fh(r.km_median_h)}</b>`, fh(r.closed_only_p90_h), `<b>${fh(r.km_p90_h)}</b>`] }));
+      const bo = RR.borough_order.find(r => r.problem === name);
+      c5 = card({ id: "time-c5", cls: "fixed", q: `${esc(pNm(name))}: 아직 열린 신고까지 넣으면 시간이 달라지나요?`,
+        what: `<span class="fixtag">유형 조건만 반영</span> 위의 시간 값은 이미 종료 기록이 있는 신고만으로 계산합니다. 생존 분석(Kaplan-Meier) ${help("survival")}은 2026-11-11까지 열려 있던 신고도 「그때까지는 열려 있었다」로 넣어 계산합니다.`,
+        meta: meta("시간", "종료 건만 vs 생존 분석", "자치구가 있는 신고 (이 표의 「종료 건만」은 관찰 마감 기준이라 위 KPI의 EDA 기준 값과 조금 다를 수 있음)"),
+        body: table(["자치구", "신고", "마감 시 열린 비율", "절반 시점: 종료 건만", "절반 시점: 생존 분석", "90% 시점: 종료 건만", "90% 시점: 생존 분석"], rows, { num: [1, 2, 3, 4, 5, 6] }),
+        read: `${T.f}${bo ? (bo.spearman >= 0.99 ? "자치구 순서는 두 방법에서 같습니다." : `자치구 순서 상관 ${bo.spearman.toFixed(1)} — 일부 순서가 바뀌지만 가장 오래 걸리는 자치구는 ${bo.slowest_closed === bo.slowest_km ? "같습니다" : "다릅니다"}.`) : ""} 열린 신고가 많은 유형일수록 「종료 건만」의 값, 특히 90% 시점이 실제보다 짧게 나옵니다.` });
+    } else if (!name) {
+      const rows = ck.filter(r => r.borough === "(전체)").map(r => ({ attr: pIdx(r.problem) >= 0 ? ` data-setp="${pIdx(r.problem)}"` : "",
+        cells: [esc(pNm(r.problem)), `${r.open_pct.toFixed(1)}%`, fh(r.closed_only_median_h), `<b>${fh(r.km_median_h)}</b>`, fh(r.closed_only_p90_h), `<b>${fh(r.km_p90_h)}</b>`] }));
+      c5 = card({ id: "time-c5", cls: "fixed", q: "아직 열린 신고까지 넣으면 시간이 달라지나요?",
+        what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과</span> 종료 기록이 있는 신고만으로 계산한 값과, 2026-11-11까지 열려 있던 신고도 넣은 생존 분석(Kaplan-Meier) ${help("survival")} 값을 비교합니다.`,
+        meta: meta("시간", "종료 건만 vs 생존 분석", "신고가 많은 15개 유형 · 행을 누르면 자치구별 비교"),
+        body: table(["유형", "마감 시 열린 비율", "절반: 종료 건만", "절반: 생존 분석", "90%: 종료 건만", "90%: 생존 분석"], rows, { num: [1, 2, 3, 4, 5] }),
+        read: `${T.f}경찰 출동 유형은 열린 신고가 거의 없어 차이가 없습니다. 도로 상태·배관·비위생 상태처럼 오래 걸리는 업무는 「종료 건만」의 값이 짧게 나오고, 특히 90% 시점 차이가 큽니다(도로 상태 270 → 625시간). 15개 유형 중 13개는 자치구 순서가 두 방법에서 완전히 같습니다.` });
+    }
+    return c4 + c5;
+  }
   function renderTime() {
     $("time-applies").innerHTML = appliesBar("time");
     const s = Object.assign({}, st, { cd: -1 });
@@ -720,7 +786,7 @@
         (shaky.length ? details(`기준에 따라 흔들려 보류한 조합 ${shaky.length}개`, `<ul class="cand">${shaky.map(c => `<li>${cLabel(c)} — ${cVal(c)} · ${esc(c.status)}</li>`).join("")}</ul>`) : ""),
       read: `${T.f}단순 비교에서 4~5시간 나던 자치구 차이가 맞춘 비교에서는 크게 줄거나 방향이 바뀝니다. ${T.m}자치구 차이의 대부분은 「어떤 업무가 많은가」의 차이입니다. ${T.w}맞춘 뒤 남은 차이도 지역의 순수한 영향이나 성과가 아닙니다. 세부 업무, 종료 기록 방식, 현장 조건이 섞여 있을 수 있습니다.`,
       more: "기준을 바꿔도: 접수 시기를 분기로, 같은 초에 닫힌 기록과 「중복」 문구로 닫힌 기록 제외, 기존 EDA의 종료 기준, 같은 날·장소·유형 묶음당 1건만, 작은 묶음(10건 미만) 제외. 조사 대상은 이 모든 기준에서 같은 방향이고, 차이가 1.25배(또는 2.5%p) 이상 남은 경우입니다. 자세한 내용: <a href=\"../reports/resolution_playbook_report.md\" target=\"_blank\">종료 시간 보고서</a>" });
-    $("time-body").innerHTML = c1 + c2 + c3;
+    $("time-body").innerHTML = c1 + c2 + c3 + rereportCards();
   }
 
   // ======================= MORE: agency charts =======================
@@ -745,7 +811,11 @@
   }
   function renderAgencyCharts() {
     const a = AS.a, rows = cRows({ b: -1, a, p: -1, m: AS.m, x: AS.x }), N = sum(rows);
-    $("ag-mission").innerHTML = `<b>${esc(aLabel(a))}</b> — ${esc(aMission(a))} <button class="hbtn" data-help="agency:${A[a]}">기관 설명·출처</button>`;
+    const agNote = { NYPD: "노숙 거처(Encampment) 신고는 2026-10부터 노숙인서비스국(DHS)이 받습니다. 10월에 이 유형이 0건인 것은 업무 이관 때문입니다.",
+      DHS: "노숙 거처(Encampment) 신고는 2026-10부터 이 기관만 받습니다(그 전에는 경찰청과 나눠 받음). 10월에 늘어난 것은 업무 이관 때문입니다.",
+      DEP: "「상수도」·「하수」·「유해 물질」은 2026-07-28~29에 코드 없는 새 이름(유지보수 등)으로 바뀐 것으로 보입니다(공식 확인 전)." }[A[a]];
+    $("ag-mission").innerHTML = `<b>${esc(aLabel(a))}</b> — ${esc(aMission(a))} <button class="hbtn" data-help="agency:${A[a]}">기관 설명·출처</button>` +
+      (agNote ? `<div class="caution" style="margin-top:6px">${esc(agNote)}</div>` : "");
     if (!N) { ["ag-prob", "ag-boro", "ag-time"].forEach(id => $(id).innerHTML = emptyBox(NO_DATA)); return; }
     const pCnt = new Map(); rows.forEach(r => pCnt.set(r[3], (pCnt.get(r[3]) || 0) + r[8]));
     const keep = [...pCnt.entries()].sort((x, y) => y[1] - x[1]).slice(0, 7).map(x => x[0]);
@@ -772,10 +842,13 @@
     ["group", "같은 날·장소·유형으로 묶은 신고", "동일 조건 신고 그룹 (incident_group_id)", "같은 접수일·자치구·주소 비교 키·유형·세부 유형의 신고를 하나로 묶은 것. 실제 사건 수가 아님. 문제가 여러 날 이어지면 날마다 다른 묶음."],
     ["matched", "비슷한 업무 구성이 되도록 맞춘 비교", "보정·가중 비교 (공통 비중 가중)", "민원 유형·세부 유형·접수 월·담당 기관이 같은 묶음에서, 두 집단의 묶음 비중을 평균 낸 공통 비중으로 가중해 중앙값·비율을 계산. 양쪽에 3건 이상 있는 묶음만 사용."],
     ["sens", "기준을 바꿔도 결과가 같은가", "민감도 분석", "분기 단위, 즉시·중복 종료 제외, 다른 종료 기준, 묶음당 1건, 작은 묶음 제외로 바꿔 다시 계산해 방향과 크기가 유지되는지 확인."],
+    ["rereport", "종결 후 재접수율", "re-report rate after closure", "종결된 신고 뒤 N일 안에 같은 번지 주소·같은 유형으로 새 신고가 들어온 비율. 분모는 종결 후 N일을 끝까지 지켜볼 수 있었던 종결 건(신규 접수 자료 끝 2026-10-31). 같은 건물의 다른 세대·새 문제·같은 사람의 재신고를 구분할 수 없어 「해결 실패율」이 아님."],
+    ["survival", "아직 열린 신고까지 넣은 시간 계산", "생존 분석 (Kaplan-Meier)", "관찰 마감까지 종료 기록이 없는 신고를 버리지 않고 「그 시점까지는 열려 있었다」로 반영해 절반·90% 시점을 계산하는 방법. 종료된 건만으로 계산하면 오래 걸리는 신고가 빠져 시간이 짧게 나옴."],
     ["corr", "두 지표가 함께 움직이는 정도", "상관관계 (스피어만 ρ)", "-1~1. 크다고 한쪽이 다른 쪽의 원인이라는 뜻이 아님."],
     ["cluster", "비슷한 특징끼리 묶어 보기", "군집 (K-Means)", "지표가 비슷한 지역·유형끼리 묶은 결과. 묶음의 구조가 약하면(실루엣 0.3 미만) 대략적인 구분으로만 읽음. 군집 번호는 이름표일 뿐 의미가 없음."],
     ["focus", "집중 주소", "focus address", "브롱크스 655 EAST 230 STREET(신고 47,105건, 대부분 주거 소음). 「제외」를 고르면 이 주소의 모든 신고를 뺌."],
-    ["reclass", "유형 이름 변경 (2026-07-29)", "Water System → Water Maintenance, Sewer → Sewer Maintenance", "환경보호국의 「상수도」·「하수」 유형이 2026-07-29에 끝나고 같은 내용이 「유지보수」 유형으로 이어짐. 공식 확인 전이라 원래 유형을 그대로 쓰고, 2번 화면의 월별 구성 표에서만 합쳐 볼 수 있음. 1년 합계로 유형을 비교할 때 두 이름이 나뉘어 있다는 점에 주의."],
+    ["reclass", "유형 이름 변경 (2026-07-28~29)", "Water System → Water Maintenance, Sewer → Sewer Maintenance, Hazardous Materials → Hazardous Material", "환경보호국의 「상수도」·「하수」·「유해 물질」 유형이 2026-07-28~29에 끝나고 같은 내용이 코드 없는 새 이름으로 이어짐. 공식 확인 전이라 원래 유형을 그대로 쓰고, 2번 화면의 월별 구성 표(체크 상자)와 「더 자세히」의 관계·묶기 분석에서만 합쳐서 계산함. 1년 합계로 유형을 비교할 때 두 이름이 나뉘어 있다는 점에 주의."],
+    ["agencymove", "담당 기관 변경 (노숙 거처, 2026-10)", "Encampment: NYPD → DHS", "노숙 거처(Encampment) 신고는 2026-09-22까지 경찰청(NYPD)과 노숙인서비스국(DHS)이 나눠 받았고, 2026-10부터는 노숙인서비스국만 받음. 기관별 신고 수·구성의 변화는 업무 이관 때문이며 실적 변화가 아님."],
     ["cd", "세부 지역", "커뮤니티 보드 (Community Board)", "뉴욕시 59개 행정 구역. 311 자료의 커뮤니티 보드 값 그대로 사용. 공원·공항 같은 공동 관리 구역과 값이 없는 신고는 세부 지역 화면에서 빠짐."],
   ];
   function renderHelp(tabKey, focusKey) {

@@ -324,6 +324,7 @@
     $("d-pane").innerHTML = `
       <div class="card readbox"><p><b>K-Means</b>는 지표가 비슷한 것끼리 k개 묶음으로 나누는 방법입니다. 지표는 표준화(z점수)한 뒤 ±${km.z_clip}에서 잘랐습니다(극단값 ${km.clipped_cells}칸). 군집 이름은 전체 평균보다 0.3 표준편차 이상 높거나 낮은 지표(최대 4개)로 자동으로 붙였습니다.
         군집은 <b>비슷한 것끼리의 묶음</b>일 뿐, 같은 원인을 가진다는 뜻이 아닙니다.${km.excluded.length ? ` 처리 시간을 계산할 종료 건이 ${R.settings.min_resolved}건 미만이라 빠진 유형: ${km.excluded.map(esc).join(", ")}.` : ""}</p></div>
+      ${S.unit === "problem" && R.same_work ? `<div class="caution">이름이 바뀐 것으로 보이는 유형 3쌍(상수도, 하수, 유해 물질 — 2026-07-28~29, 공식 확인 전)은 합쳐서 계산했습니다. 합치지 않으면 몇 달만 있는 유형처럼 보여 「월별 변동」이 부풀려집니다. 합치기 전과 비교하면 k = 3에서 다른 유형 5개의 묶음이 바뀌었습니다. 경계 근처의 유형은 입력이 조금만 달라져도 옮겨 가므로, 묶음 번호보다 각 지표 값을 함께 보세요(reclass_check_report).</div>` : ""}
       ${run.silhouette < 0.3 ? `<div class="caution">k = ${k}의 실루엣 점수가 ${run.silhouette.toFixed(2)}로 낮습니다. 군집 사이 경계가 뚜렷하지 않으므로, 군집은 「비슷한 것끼리의 대략적인 묶음」으로만 읽어 주세요. 경계 근처의 ${S.unit === "problem" ? "유형" : "지역"}은 k나 설정이 조금만 바뀌어도 다른 군집으로 갈 수 있습니다.</div>` : ""}
       <div class="grid2">
         <figure class="card"><figcaption>k별 실루엣 점수<span class="sub">높을수록 군집이 잘 나뉨 · 0.25 미만 약함, 0.25~0.5 보통, 0.5 이상 뚜렷함 · 기본 k = 3~6 중 최고</span></figcaption><div id="d3-sil"></div></figure>

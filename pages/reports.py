@@ -11,6 +11,8 @@ TITLES = {
     "repeat_address_report": "동일 주소의 반복 신고",
     "resolution_playbook_report": "자치구별 종료 시간: 비슷한 업무끼리 맞춘 비교",
     "monthly_composition_report": "월별 민원 구성의 차이",
+    "rereport_report": "종결 후 재접수율과 생존 분석",
+    "reclass_check_report": "유형 이름 변경이 심화 분석에 미치는 영향",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 
