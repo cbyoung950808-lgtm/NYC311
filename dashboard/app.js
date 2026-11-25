@@ -289,6 +289,9 @@
     const fNR = (() => { const rr = C.filter(x => x[3] === P.indexOf("Noise - Residential") && x[1] === FOCUS_B); return [sum(rr), sum(rr.filter(x => x[4] === 0))]; })();
     const L1 = X.playbook.L1.filter(x => x.metric === "median_h");
     const pbOK = X.playbook.summary && L1.length === 5;
+    const RRo = window.REREPORT_DATA ? window.REREPORT_DATA.overall.find(x => x.unit === "request" && x.scope === "all") : null;
+    const WXs = window.WEATHER_DATA ? window.WEATHER_DATA.compare.find(x => x.group === "snow_ice" && x.event === "snow") : null;
+    const BDb = window.BUILDING_DATA ? Object.fromEntries(window.BUILDING_DATA.borough.map(x => [x.borough, x.report_days_per_1000_units])) : null;
     $("home-data").innerHTML = `
       <div class="kpis">
         <div class="kpi"><div class="lab">기간</div><div class="val">1년</div><div class="sub">접수 ${esc(o.created_min.slice(0, 16))} ~ ${esc(o.created_max.slice(0, 16))}. 첫날·마지막 날은 일부 시간만 들어 있음</div></div>
@@ -309,17 +312,20 @@
         lim: "신고가 많다는 사실만으로 특정 주민의 행동이나 실제 소음 수준을 판단할 수 없습니다." },
       { v: "places", s: {}, t: "신고는 같은 주소에서 여러 번 들어오는 경우가 대부분입니다",
         fact: `번지가 있는 주소의 신고 중 ${rep.reports_at_ge2_pct.toFixed(1)}%는 1년 동안 2건 이상 신고된 주소에서 나왔습니다. 같은 주소·같은 유형의 반복은 같은 날 하루에 몰리기보다 여러 달에 걸쳐 들어옵니다.`,
-        lim: "다시 신고됐다는 것이 해결 실패나 재발이라는 뜻은 아닙니다. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소로 셉니다." },
+        lim: "다시 신고됐다는 것이 해결 실패나 재발이라는 뜻은 아닙니다. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소로 셉니다." + (RRo ? ` 종결 뒤 같은 주소·유형으로 다시 접수된 비율은 7일 ${RRo.rate_7d.toFixed(1)}%, 30일 ${RRo.rate_30d.toFixed(1)}%입니다(4번 화면 「종결 뒤 재접수」).` : "") },
       { v: "when", s: { p: P.indexOf("HEAT/HOT WATER") }, t: "계절과 특정 날짜에 따라 신고가 크게 달라집니다",
-        fact: "난방·온수 신고는 겨울(11~2월)에 몰립니다. 하루 신고가 가장 많았던 2026-02-24에는 22,793건이 들어왔고, 그중 눈·얼음이 11,370건입니다.",
-        lim: "1년 자료라 매년 반복되는 계절성인지 알 수 없고, 날씨와 대조하지 않아 급증 원인은 확정하지 않았습니다." },
+        fact: "난방·온수 신고는 겨울(11~2월)에 몰립니다. 하루 신고가 가장 많았던 2026-02-24에는 22,793건이 들어왔고, 그중 눈·얼음이 11,370건입니다." +
+          (WXs ? ` 센트럴파크 날씨와 대조하면 2/22~23에 눈 50cm가 내린 직후이고, 눈이 온 날부터 2일 동안 눈·얼음 신고는 평소의 약 ${Math.round(WXs.rel_main)}배였습니다(2번 화면 날씨 카드).` : ""),
+        lim: "1년 자료라 매년 반복되는 계절성인지 알 수 없습니다. 날씨와 신고가 함께 움직였다는 관찰이며, 관측소 1곳의 날씨로 뉴욕시 전체를 대신했습니다." },
       { v: "time", s: {}, t: pbOK ? "처리 시간의 자치구 차이는 대부분 「어떤 업무가 많은가」의 차이입니다" : "처리 시간 비교는 같은 업무끼리 해야 합니다",
         fact: pbOK ? (() => { const g = Object.fromEntries(L1.map(x => [x.borough, x]));
           const f = (b) => `${BKO[b]}은 단순 비교에서 ${g[b].raw_t.toFixed(1)}시간 vs 나머지 네 곳 ${g[b].raw_o.toFixed(1)}시간이지만, 비슷한 업무끼리 맞추면 ${g[b].adj_t_main.toFixed(1)} vs ${g[b].adj_o_main.toFixed(1)}시간입니다`;
           return `절반의 신고가 종료 기록에 도달한 시간을 비교했습니다. ${f("BRONX")}. ${f("MANHATTAN")}. 민원 유형·세부 유형·접수 월·기관이 같은 업무끼리 맞추면 차이가 크게 줄거나 방향이 바뀝니다.`; })()
           : "자치구마다 맡는 민원이 달라, 전체 값만 비교하면 업무 구성 차이가 섞입니다.",
         lim: "맞춘 비교도 지역의 순수한 영향이나 기관의 성과를 뜻하지 않습니다. 「종료 기록」은 실제 해결·수리 완료의 증거가 아닙니다." },
-    ];
+    ].concat(BDb ? [{ v: "places", s: {}, t: "세대 수로 나눠도 브롱크스의 난방 신고가 가장 많습니다",
+        fact: `모든 주거 세대 1,000곳당 난방 신고가 있었던 날은 브롱크스 ${Math.round(BDb.BRONX)}일, 브루클린 ${Math.round(BDb.BROOKLYN)}일, 맨해튼 ${Math.round(BDb.MANHATTAN)}일, 퀸스 ${Math.round(BDb.QUEENS)}일입니다. 20~99세대 건물과 1946년 이전 건물에서 많고, 1년에 10일 이상 신고가 반복된 건물(15%)이 난방 신고의 71%를 차지합니다.`,
+        lim: "세대 수는 현재 시점의 건물 정보(PLUTO)입니다. 신고가 많다고 건물 상태가 나쁘다고 확정할 수 없고, 건물주·기관 평가가 아닙니다." }] : []);
     $("home-findings").innerHTML = F.map((f, i) => `<div class="finding"><h3><span class="fnum">${i + 1}</span>${f.t}</h3>
       <p>${T.f}${f.fact}</p><p class="lim">${T.w}${f.lim}</p>
       <button class="gobtn" data-goto="${f.v}" data-preset='${JSON.stringify(f.s)}'>관련 화면에서 직접 확인 →</button></div>`).join("");
@@ -825,7 +831,7 @@
     const agLine = st.p >= 0 && agencies.length ? `<div class="agline">담당 기관: ${agencies.slice(0, 2).map(([a, n]) => `<b>${esc(aLabel(a))}</b> — ${esc(aMission(a))} <button class="hbtn" data-help="agency:${A[a]}">기관 설명</button>`).join("<br>")}</div>` : "";
     const kp = [
       [`절반이 종료 기록에 도달한 시간 ${help("median")}`, q ? fmtH(q[6]) : "-", q ? `중앙값 · 계산 대상: 종료 기록이 있는 신고 ${fmtN(q[5])}건 (현재 조건 ${fmtN(N)}건 중 ${pct(q[5], N)})` : NO_DATA],
-      [`90%가 종료 기록에 도달한 시간 ${help("p90")}`, q ? fmtH(q[7]) : "-", q ? "같은 계산 대상 중 나머지 10%는 이보다 오래 걸림. 전체 신고의 90%가 해결됐다는 뜻이 아님" : NO_DATA],
+      [`90%가 종료 기록에 도달한 시간 ${help("p90")}`, q ? fmtH(q[7]) : "-", q ? "같은 계산 대상 중 나머지 10%는 이보다 오래 걸림. 전체 신고의 90%가 해결됐다는 뜻이 아님. 아직 열린 신고가 빠져 있어, 오래 걸리는 업무는 실제보다 짧게 나옴(아래 「아직 열린 신고까지 넣으면」 카드)" : NO_DATA],
       [`7일 안에 종료 기록이 없는 비율 ${help("nonclose")}`, dl[0] ? pctF(dl[1], dl[0]) : "-", dl[0] ? `${per100(dl[1], dl[0])} · 분모: 7일 이상 지켜볼 수 있었던 신고 ${fmtN(dl[0])}건` : NO_DATA],
       [`30일 안에 종료 기록이 없는 비율`, dl[2] ? pctF(dl[3], dl[2]) : "-", dl[2] ? `${per100(dl[3], dl[2])} · 분모: 2026-10-12까지 접수된 신고 ${fmtN(dl[2])}건` : NO_DATA],
     ];
@@ -976,15 +982,23 @@
       h = table(["항목", "기준", "숫자"], [
         ["기본 분석 대상 신고", "중복 의심(요청 번호만 다르고 나머지가 같은 행) 제외", `${fmtN(o.rows_base)}건`],
         ["기간", `접수 ${o.created_min} ~ ${o.created_max}. 하루 전체가 포함된 날 ${o.full_days}일. 월별·요일별 하루 평균은 이 날들만 사용`, "-"],
-        ["처리 시간 (절반·90%)", "Closed, 처리 시간 > 0, 상태·종료일 불일치 아님 (기존 EDA 기준). 조건마다 원자료에서 정확히 계산", `${fmtN(r.resolved_rows)}건`],
+        ["처리 시간 (절반·90%)", "Closed, 처리 시간 > 0, 상태·종료일 불일치 아님 (기존 EDA 기준). 조건마다 원자료에서 정확히 계산. 아직 열린 신고는 빠지므로 오래 걸리는 업무는 실제보다 짧게 나옴(특히 90% 시점, 예: 도로 상태 270 → 625시간). 생존 분석 값은 4번 화면 「아직 열린 신고까지 넣으면」 카드", `${fmtN(r.resolved_rows)}건`],
         ["7일·30일 종료 기록 없음", "관찰 마감 가정 2026-11-11 00:00 전 종료 시각 유무로 판단(상태 값 무관), 종료 시각이 접수보다 빠른 기록 제외, 그 기간을 지켜볼 수 있었던 접수만 분모", `7일 ${fmtN(pb.elig7)}건 / 30일 ${fmtN(pb.elig30)}건`],
         ["두 종료 기준의 차이", "EDA 기준은 「상태가 Closed이고 시간이 양수인 정상 종료 기록」을 측정, 새 기준은 「마감 전에 종료 시각이 기록됐는가」를 측정. 어느 한쪽이 정답이 아님. 같은 지표로 섞어 쓰지 않음", `상태는 Closed가 아닌데 종료 시각이 있는 신고 ${fmtN(pb.status_not_closed_but_close_time)}건`],
         ["주소", "자치구 + address_key(공백·대소문자만 통일). 약어는 합치지 않음. 주소 없는 신고는 한 장소로 보지 않음", "-"],
         ["세부 지역", "표준 커뮤니티 보드 59곳(코드 01~18)", `${fmtN(CBC.reduce((t, x) => t + x[6], 0))}건`],
         ["집중 주소", "BRONX + 655 EAST 230 STREET", "47,105건"],
-        ["유형 이름 변경", "환경보호국 「상수도」·「하수」가 2026-07-29에 끝나고 「상수도 유지보수」·「하수 유지보수」로 이어짐(공식 확인 전). 원래 유형을 그대로 쓰고, 2번 화면 월별 구성 표에서만 합쳐 보기 가능", "-"],
+        ["유형 이름 변경", "환경보호국 「상수도」·「하수」·「유해 물질」이 2026-07-28~29에 끝나고 코드 없는 새 이름으로 이어짐(공식 확인 전). 원래 유형을 그대로 쓰고, 2번 화면 월별 구성 표(체크 상자)와 「더 자세히」의 관계·묶기 분석에서만 합쳐 계산", "-"],
+        ["난방 기록 방식 변화", "2026-01-24 접수분부터 HPD가 난방 신고 일부(월 3~10%)를 「조건이 아직 남아 있음」으로 열어 둠. 난방의 7일·30일 종료 기록 없음 비율은 이 날 전후를 비교하지 않음", "-"],
+      ]) + `<h4>날짜 기준 한눈에 보기</h4>` + table(["날짜", "뜻", "쓰는 곳"], [
+        ["2025-11-01 21:09 ~ 2026-10-31 21:09", "접수 기간 (자료 범위)", "모든 화면"],
+        ["2025-11-02 ~ 2026-10-30", "하루 전체가 포함된 날 (363일)", "월·요일·시간대 하루 평균, 날씨 비교"],
+        ["2026-10-31 21:09", "마지막 신규 접수 = 재접수를 지켜볼 수 있는 끝", "종결 후 재접수율"],
+        ["2026-11-11 00:00 (가정)", "관찰 마감: 이 전에 종료 시각이 있으면 종료로 봄. 기록된 종료 시각이 2026-11-11 03:25에서 끝나서 정함", "7일·30일 종료 기록 없음, 맞춘 비교, 생존 분석, 급증·지연"],
+        ["2026-11-12", "원본 파일 날짜. 반복 주소 보고서는 이 날을 기준으로 씀(11-11과 결과 차이 0.01%p 이내)", "반복 주소 보고서"],
+        ["2026-11-10 (점검일 끝)", "HPD 난방·온수 위반 기록을 받은 범위 (2025-11-01부터)", "3번 화면 건물 카드"],
       ]) + `<h4>지원하지 않는 것</h4><ul><li>여러 달을 묶은 기간 선택(백분위수를 정확히 합칠 수 없음)</li><li>주소 순위에서 유형+기간 동시 선택, 세부 지역 단위 주소 순위·처리 시간·요일/시간대</li><li>인구 대비 비율(별도 보고서 참고), 지도, 실시간 자료</li></ul>
-        <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a> · <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성</a></p>`;
+        <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a> · <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성</a> · <a href="../reports/reclass_check_report.md" target="_blank">유형 이름 변경</a> · <a href="../reports/rereport_report.md" target="_blank">재접수·생존 분석</a> · <a href="../reports/weather_report.md" target="_blank">날씨</a> · <a href="../reports/surge_delay_report.md" target="_blank">급증과 지연</a> · <a href="../reports/heat_record_change_report.md" target="_blank">난방 기록 변화</a> · <a href="../reports/building_report.md" target="_blank">건물 규모</a></p>`;
     }
     $("help-body").innerHTML = h; fixLinks($("help-body"));
     if (focusKey) { const el = $("gl-" + focusKey) || $("agc-" + focusKey); if (el) el.scrollIntoView({ block: "start" }); } else $("help-body").scrollTop = 0;
