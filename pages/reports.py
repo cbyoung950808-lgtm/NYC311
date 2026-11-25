@@ -15,6 +15,7 @@ TITLES = {
     "reclass_check_report": "유형 이름 변경이 심화 분석에 미치는 영향",
     "weather_report": "날씨와 신고 급증",
     "surge_delay_report": "신고가 몰리면 종료가 늦어지는가",
+    "heat_record_change_report": "난방·온수 기록 방식 변화 점검",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 
