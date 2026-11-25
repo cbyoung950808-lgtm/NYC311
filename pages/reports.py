@@ -13,6 +13,7 @@ TITLES = {
     "monthly_composition_report": "월별 민원 구성의 차이",
     "rereport_report": "종결 후 재접수율과 생존 분석",
     "reclass_check_report": "유형 이름 변경이 심화 분석에 미치는 영향",
+    "weather_report": "날씨와 신고 급증",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 

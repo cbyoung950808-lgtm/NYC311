@@ -477,6 +477,59 @@
         `구성 차이 D = 0.5 × 합계(|그 달 유형 비중 − 1년 유형 비중|), 모든 유형 사용. 자세한 내용: <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성 보고서</a>` +
         (reclassShown ? "" : "") });
   }
+  // ---------- weather vs complaint surges (reports/weather_report.md) ----------
+  let WX_G = null;
+  const WX_MAP = { "Snow or Ice": "snow_ice", "HEAT/HOT WATER": "heat", "Street Condition": "pothole", "Water System": "hydrant", "Water Maintenance": "hydrant",
+    "Sewer": "sewer_flood", "Sewer Maintenance": "sewer_flood", "Damaged Tree": "tree", "Noise - Street/Sidewalk": "noise_street", "Noise - Residential": "noise_res" };
+  const WX_COL = { snow: "#9ec5f4", cold: "#c9d3e0", hot: "#f6b98a", heavy_rain: "#a8d5ba", windy: "#e3d3a6" };
+  function weatherCard() {
+    const W = window.WEATHER_DATA; if (!W) return "";
+    const fromSel = st.p >= 0 ? WX_MAP[P[st.p]] : null;
+    const g = WX_G || fromSel || "snow_ice", G = W.groups.find(x => x.id === g), D = W.daily;
+    const EV = W.inputs.events, evLab = e => EV[e].label;
+    const [cnt, usual] = D[g];
+    // chart: daily count vs usual level, symlog-ish y, event windows shaded
+    const Wd = 900, H = 230, L = 44, Rr = 10, Tp = 10, B = 26, n = D.date.length, pw = Wd - L - Rr, ph = H - Tp - B;
+    const tr = v => Math.log10(1 + Math.max(0, v)), maxY = Math.max(...cnt.map(tr), ...usual.map(v => tr(v || 0)), 1);
+    const X = i => L + (i + 0.5) / n * pw, Y = v => Tp + ph - tr(v) / maxY * ph;
+    let svg = "";
+    G.related.forEach(e => D.windows[e].forEach((f, i) => { if (f) svg += `<rect x="${(X(i) - pw / n / 2).toFixed(1)}" y="${Tp}" width="${(pw / n + 0.4).toFixed(1)}" height="${ph}" fill="${WX_COL[e]}" opacity="0.75"/>`; }));
+    [1, 10, 100, 1000, 10000, 100000].filter(v => tr(v) <= maxY).forEach(v => { svg += `<line x1="${L}" x2="${Wd - Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${v >= 10000 ? v / 10000 + "만" : v >= 1000 ? v / 1000 + "천" : v}</text>`; });
+    D.date.forEach((d, i) => { if (d.slice(8) === "01" || i === 0) svg += `<text x="${X(i)}" y="${H - 8}" font-size="11" fill="var(--muted)" text-anchor="middle">${+d.slice(5, 7)}월</text>`; });
+    const path = arr => arr.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v || 0).toFixed(1)}`).join("");
+    svg += `<path d="${path(usual)}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 3"/><path d="${path(cnt)}" fill="none" stroke="var(--s1)" stroke-width="1.6"/>`;
+    D.date.forEach((d, i) => { const evs = Object.keys(EV).filter(e => D.events[e][i]).map(evLab);
+      svg += `<rect class="hit" x="${(X(i) - pw / n / 2).toFixed(1)}" y="${Tp}" width="${(pw / n).toFixed(2)}" height="${ph}" fill="transparent" data-tip="${esc(`<b>${d}</b><br>신고 ${fmtN(cnt[i])}건 · 평소 ${fmtN(Math.round(usual[i] || 0))}건<br>최고 ${D.tmax[i]}°C · 최저 ${D.tmin[i]}°C · 비 ${D.prcp[i]}mm · 눈 ${D.snow[i]}mm${evs.length ? "<br>" + evs.join(", ") : ""}`)}"/>`; });
+    const chart = `<div class="legend"><span><i style="background:var(--s1)"></i>하루 신고 수</span><span><i style="background:var(--muted)"></i>평소 수준 (같은 달·같은 요일 중앙값, 점선)</span>${G.related.map(e => `<span><i style="background:${WX_COL[e]}"></i>${esc(evLab(e))}</span>`).join("")}<span>세로축: 로그 눈금</span></div>` +
+      `<svg class="chart" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="하루 신고 수와 날씨 사건">${svg}</svg>`;
+    const cmp = W.compare.filter(r => r.group === g).sort((a, b) => (b.related - a.related) || (b.rel_main - a.rel_main));
+    const fx = v => `×${v >= 10 ? v.toFixed(0) : v.toFixed(2)}`;
+    const tbl = table(["날씨 사건", "사건 날 수", "평소 대비 (사건 기간 ÷ 같은 달 다른 날)", "가장 큰 하루 제외", "집중 주소 제외", "판정"],
+      cmp.map(r => ({ cls: r.related ? "hlrow" : "", cells: [esc(r.event_label) + (r.related ? "" : " <small>(참고)</small>"), fmtN(r.event_days), `<b>${fx(r.rel_main)}</b>`, fx(r.rel_drop_max), fx(r.rel_no_focus), esc(r.status)] })), { num: [1, 2, 3, 4] });
+    const clo = W.closure.filter(r => r.group === g);
+    const cloT = clo.length ? details("날씨 사건 때 종료 기록이 늦어졌나요? (단순 비교)", table(["날씨 사건", "사건 기간 접수", "7일 안에 종료 기록 없음: 사건 기간", "같은 달 다른 날"],
+      clo.map(r => [esc(r.event_label), fmtN(r.n_event), `${r.open7_event_pct.toFixed(1)}%`, `${r.open7_other_pct.toFixed(1)}%`]), { num: [1, 2, 3] }) + `<p class="note">세부 유형·지역을 맞추지 않은 단순 비교입니다. 관찰 마감 2026-11-11 가정.</p>`) : "";
+    const top = W.top.filter(r => r.group === g);
+    const topT = details("신고가 평소보다 가장 많았던 5일과 그날 날씨", table(["날짜", "신고 (평소)", "눈 (전날)", "쌓인 눈", "비 (전날)", "최고 / 최저", "날씨 사건"],
+      top.map(r => [`${r.date} (${r.dow})`, `${fmtN(r.n)} (${fmtN(Math.round(r.usual))})`, `${r.snow_mm} (${r.snow_prev_mm})mm`, `${r.snow_depth_mm ?? "-"}mm`, `${r.prcp_mm} (${r.prcp_prev_mm})mm`, `${r.tmax} / ${r.tmin}°C`, esc(r.events || "-")]), { num: [1] }));
+    const sel = `<label class="tgl">민원 묶음 <select id="wx-g">${W.groups.map(x => `<option value="${x.id}"${x.id === g ? " selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>`;
+    const READ = {
+      snow_ice: `${T.f}눈이 온 날부터 2일 동안 평소의 약 14배, 혹한 때 약 12배였습니다.`,
+      heat: `${T.f}최저 -7°C 이하인 날에는 평소의 약 1.9배였습니다. 10월 중순의 급증은 날씨 사건이 아니라 난방 시즌 시작 무렵입니다.`,
+      pothole: `${T.f}눈·추위·큰비가 온 날에는 오히려 평소보다 적었습니다(약 0.8배). 가장 많았던 날은 2월 폭설이 녹던 2/26~28입니다. ${T.m}3월 집중은 그날 날씨보다 겨울 뒤 한꺼번에 드러나는 모습에 가까워 보입니다(확인 안 됨).`,
+      hydrant: `${T.f}최고 32°C 이상인 날 평소의 약 3.4배였고, 이때 접수는 오히려 빨리 종료 기록이 남았습니다.`,
+      sewer_flood: `${T.f}비 25mm 이상인 날과 다음 날 평소의 약 2.6배였습니다.`,
+      tree: `${T.f}큰비 때 약 2.3배, 바람 센 날 약 2배였습니다. 2026-06-07처럼 센트럴파크에 큰비가 없었던 급증은 국지적 폭풍일 수 있습니다.`,
+      noise_street: `${T.f}더운 날에도 차이가 작고(약 1.2배), 비·추위·바람 센 날에는 적었습니다.`,
+      noise_res: `${T.f}어느 날씨에서도 평소와 비슷했습니다.`,
+      all: `${T.f}전체 신고는 추운 날에만 약 1.3배였고, 다른 날씨에서는 평소와 비슷했습니다.` }[g];
+    return card({ id: "when-wx", cls: "fixed", q: "날씨가 궂은 날 관련 민원이 늘어나나요?",
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과 (유형을 고르면 관련 묶음을 먼저 보여 줌)</span> 눈·추위·더위·큰비·강풍이 있던 날의 신고를 「같은 달·같은 요일의 평소 수준」과 비교합니다.`,
+      meta: meta("건 (로그 눈금), 배", "사건 기간 vs 같은 달의 다른 날", "뉴욕시 전체 · 하루 전체가 포함된 날 2025-11-02 ~ 2026-10-30 · 날씨: NOAA 센트럴파크 관측소 1곳"),
+      body: sel + chart + tbl + cloT + topT,
+      read: `${READ} ${T.w}관측소 1곳의 날씨로 뉴욕시 전체를 대신했고, 눈·비·바람·추위가 같은 날 겹친 경우가 많아 어느 날씨 때문인지 나눌 수 없습니다. 함께 움직였다는 관찰이지 원인이 아닙니다.`,
+      more: "날씨 사건: 눈 = 새로 내린 눈 25mm 이상(그날~2일 뒤), 큰비 = 강수 25mm 이상(그날~다음 날), 더운 날 = 최고 32°C 이상(그날), 추운 날 = 최저 -7°C 이하(그날~다음 날), 바람 센 날 = 하루 평균 풍속 상위 5%(4.4 m/s 이상, 그날~다음 날). 하루 배율 = (신고+1) ÷ (평소+1), 평소 = 같은 달·같은 요일 중앙값. 판정: 기본·가장 큰 하루 제외·집중 주소 제외 모두 ×1.25 이상이면 「많음 (유지)」, 모두 ×0.8 이하이면 「적음 (유지)」. 「(참고)」 행은 관련이 적은 날씨로, 사건이 겹쳐서 생긴 차이일 수 있습니다. 자세한 내용: reports/weather_report.md" });
+  }
   function renderWhen() {
     $("when-applies").innerHTML = appliesBar("when");
     const R = regionInfo();
@@ -558,7 +611,7 @@
         read: total ? `${T.f}가장 많은 날 하루가 이 기간 신고의 ${pct(topd[0][1], total)}입니다. 하루가 큰 몫을 차지하면 「특정 날의 급증」, 막대가 여러 달 고르게 높으면 「이어지는 패턴」입니다. ${T.w}급증 원인(날씨, 행사, 시스템)은 이 자료로 확인하지 않았습니다.` : "",
         more: "보통의 날 = 하루 전체가 포함된 날들의 하루 신고 수 중앙값. 첫날(2025-11-01)과 마지막 날(2026-10-31)은 일부 시간만 들어 있어 급증 목록에서 뺐습니다." });
     }
-    $("when-body").innerHTML = c1 + monthCompCard([R.name, st.a >= 0 ? aName(st.a) : ""].filter(Boolean).join(" · ") + (st.x ? " · 집중 주소 제외" : "")) + c2 + (c3 || "") + c4;
+    $("when-body").innerHTML = c1 + monthCompCard([R.name, st.a >= 0 ? aName(st.a) : ""].filter(Boolean).join(" · ") + (st.x ? " · 집중 주소 제외" : "")) + c2 + (c3 || "") + c4 + weatherCard();
   }
 
   // ======================= 3. PLACES =======================
@@ -842,6 +895,7 @@
     ["group", "같은 날·장소·유형으로 묶은 신고", "동일 조건 신고 그룹 (incident_group_id)", "같은 접수일·자치구·주소 비교 키·유형·세부 유형의 신고를 하나로 묶은 것. 실제 사건 수가 아님. 문제가 여러 날 이어지면 날마다 다른 묶음."],
     ["matched", "비슷한 업무 구성이 되도록 맞춘 비교", "보정·가중 비교 (공통 비중 가중)", "민원 유형·세부 유형·접수 월·담당 기관이 같은 묶음에서, 두 집단의 묶음 비중을 평균 낸 공통 비중으로 가중해 중앙값·비율을 계산. 양쪽에 3건 이상 있는 묶음만 사용."],
     ["sens", "기준을 바꿔도 결과가 같은가", "민감도 분석", "분기 단위, 즉시·중복 종료 제외, 다른 종료 기준, 묶음당 1건, 작은 묶음 제외로 바꿔 다시 계산해 방향과 크기가 유지되는지 확인."],
+    ["weather", "날씨 사건과 신고", "NOAA GHCN-Daily, Central Park (USW00094728)", "미국 기상청(NOAA NCEI)의 센트럴파크 관측소 일별 기온·강수·적설·풍속. 관측소 1곳으로 뉴욕시 전체를 대신하므로 자치구마다 실제 날씨와 다를 수 있음. 신고와 날씨가 같은 날 함께 움직였다는 관찰이며 원인이 아님."],
     ["rereport", "종결 후 재접수율", "re-report rate after closure", "종결된 신고 뒤 N일 안에 같은 번지 주소·같은 유형으로 새 신고가 들어온 비율. 분모는 종결 후 N일을 끝까지 지켜볼 수 있었던 종결 건(신규 접수 자료 끝 2026-10-31). 같은 건물의 다른 세대·새 문제·같은 사람의 재신고를 구분할 수 없어 「해결 실패율」이 아님."],
     ["survival", "아직 열린 신고까지 넣은 시간 계산", "생존 분석 (Kaplan-Meier)", "관찰 마감까지 종료 기록이 없는 신고를 버리지 않고 「그 시점까지는 열려 있었다」로 반영해 절반·90% 시점을 계산하는 방법. 종료된 건만으로 계산하면 오래 걸리는 신고가 빠져 시간이 짧게 나옴."],
     ["corr", "두 지표가 함께 움직이는 정도", "상관관계 (스피어만 ρ)", "-1~1. 크다고 한쪽이 다른 쪽의 원인이라는 뜻이 아님."],
@@ -927,6 +981,7 @@
     if (t.dataset.tab) show(t.dataset.tab);
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeHelp(); });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "wx-g") { WX_G = e.target.value; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "ws-merge") { MERGE_WS = e.target.checked; render(); } });
   window.addEventListener("hashchange", () => { const v0 = st.v; fromHash(); if (st.v !== v0) show(st.v); else render(); });
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
