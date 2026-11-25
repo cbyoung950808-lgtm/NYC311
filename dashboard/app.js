@@ -615,6 +615,37 @@
   }
 
   // ======================= 3. PLACES =======================
+  // ---------- heat complaints by building size (PLUTO + HPD violations; reports/building_report.md) ----------
+  function buildingCard() {
+    const BD = window.BUILDING_DATA; if (!BD) return "";
+    const f0 = v => v == null ? "-" : Math.round(v).toLocaleString(), pc = v => v == null ? "-" : `${v.toFixed(0)}%`;
+    const bar = (v, max, col) => `<span class="hbarc"><i style="width:${Math.max(1, v / max * 100).toFixed(1)}%;background:${col}"></i></span>`;
+    const mb = Math.max(...BD.borough.map(r => r.report_days_per_1000_units));
+    const bt = table(["자치구", "모든 주거 세대 1,000곳당 신고일", "", "신고 건수 기준"], BD.borough.slice().sort((a, b) => b.report_days_per_1000_units - a.report_days_per_1000_units)
+      .map(r => [esc(BKO[r.borough] || r.borough), `<b>${f0(r.report_days_per_1000_units)}</b>`, bar(r.report_days_per_1000_units, mb, "var(--s1)"), f0(r.requests_per_1000_units)]), { num: [1, 3] });
+    const ms = Math.max(...BD.size.map(r => r.report_days_per_1000_units_all));
+    const st_ = table(["세대 수", "신고가 있었던 건물", "그 규모 건물 중", "모든 세대 1,000곳당 신고일", "", "위반 기록이 있는 비율"], BD.size.map(r => [esc(r.size_band), fmtN(r.buildings), pc(r.pct_buildings_with_complaint), `<b>${f0(r.report_days_per_1000_units_all)}</b>`, bar(r.report_days_per_1000_units_all, ms, "var(--s1)"), pc(r.with_viol_pct)]), { num: [1, 2, 3, 5] });
+    const ma = Math.max(...BD.age.map(r => r.report_days_per_1000_units_all));
+    const at = table(["준공", "신고가 있었던 건물", "모든 세대 1,000곳당 신고일", ""], BD.age.map(r => [esc(r.age_band), fmtN(r.buildings), `<b>${f0(r.report_days_per_1000_units_all)}</b>`, bar(r.report_days_per_1000_units_all, ma, "var(--s1)")]), { num: [1, 2] });
+    const vt = table(["1년 중 신고가 있었던 날", "건물", "난방·온수 위반 기록 있음", "", "HPD가 열어 둔 신고 있음"], BD.viol_by_days.map(r => [esc(r.rd_band), fmtN(r.buildings), `<b>${pc(r.with_viol_pct)}</b>`, bar(r.with_viol_pct, 100, "var(--s2)"), pc(r.with_left_open_pct)]), { num: [1, 2, 4] });
+    const lab = c => [c.f_repeat ? "반복" : "", c.f_rate ? "세대 대비 상위" : "", c.f_viol ? "위반" : ""].filter(Boolean).join(" + ") || "셋 다 아님";
+    const ct = table(["조건 조합", "건물", "난방 신고 중 비중"], BD.combos.slice().sort((a, b) => b.requests_pct - a.requests_pct).map(c => ({ cls: c.f_repeat && c.f_rate && c.f_viol ? "hlrow" : "", cells: [esc(lab(c)), fmtN(c.buildings), `${c.requests_pct.toFixed(1)}%`] })), { num: [1, 2] });
+    const C = BD.concentration, S = BD.screening, fp = (BD.focus.pluto || [])[0];
+    const kp = [["난방 신고가 있었던 건물", fmtN(C.buildings), `상위 1%가 신고의 ${C.top1pct_share.toFixed(0)}%, 상위 10%가 ${C.top10pct_share.toFixed(0)}%`],
+      ["10일 이상 반복된 건물", `${C.repeated_ge10_pct.toFixed(0)}%`, `이 건물들이 신고의 ${C.requests_in_repeated_pct.toFixed(0)}%`],
+      ["세 조건을 모두 만족하는 건물", fmtN(S.all_three), `신고의 ${S.all_three_requests_pct.toFixed(0)}% · 맨해튼 ${S.by_borough.MANHATTAN || 0}, 브롱크스 ${S.by_borough.BRONX || 0}, 브루클린 ${S.by_borough.BROOKLYN || 0}`]];
+    return card({ id: "places-bld", cls: "fixed", q: "건물 규모를 감안해도 난방 신고가 많은 곳은?",
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과 (난방·온수)</span> 난방·온수 신고를 건물 번호(BBL)로 묶어, 뉴욕시 건물 정보(PLUTO)의 세대 수와 HPD 난방·온수 위반 기록을 붙였습니다 ${help("building")}.`,
+      meta: meta("신고일 (같은 날 여러 건은 1일), %", "모든 주거 세대 대비 · 규모·준공 연도·자치구별", `난방·온수 신고 ${fmtN(BD.coverage.n)}건 중 PLUTO와 연결된 ${fmtN(BD.coverage.with_units)}건 (${(BD.coverage.with_units / BD.coverage.n * 100).toFixed(1)}%)`),
+      body: `<div class="kpis">${kp.map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
+        `<h4 class="minih">자치구: 세대 수로 나눠도 많은가?</h4>` + bt +
+        `<h4 class="minih">건물 규모별</h4>` + st_ +
+        details("준공 연도별", at) +
+        details("신고가 오래 반복된 건물일수록 위반 기록이 있나?", vt + `<p class="note">HPD 점검은 대부분 신고로 시작되므로, 신고가 많으면 위반이 발견될 기회도 많습니다(위반 건물의 ${BD.violations.pct_violation_buildings_with_complaint.toFixed(0)}%에 같은 기간 난방 신고가 있음).</p>`) +
+        details("더 들여다볼 후보: 세 조건 조합", ct + `<p class="note">반복 = 1년 중 10일 이상 신고. 세대 대비 상위 = 6세대 이상 건물 중 세대 10곳당 신고일 상위 10%(${BD.rate_cut.toFixed(1)}일 이상). 위반 = 난방(§27-2029)·온수(§27-2031) 위반 기록 1건 이상. 순위가 아니며 건물 주소는 보고서 표에만 있습니다.</p>`),
+      read: `${T.f}세대 수로 나눠도 브롱크스가 가장 많고(다른 자치구의 약 2배 이상), 20~99세대의 중간 규모 건물과 1946년 이전 건물에서 많습니다. 신고는 일부 건물에 몰려 있고, 오래 반복된 건물일수록 위반 기록도 많습니다.${fp ? ` 집중 주소(655 East 230th St, ${fp.unitsres}세대, ${fp.yearbuilt}년)는 난방 신고가 25건뿐이고 위반 기록이 없어, 난방 문제 건물이 아닙니다(신고 대부분이 주거 소음).` : ""} ${T.w}세대 수는 PLUTO 현재값이고, 위반 기록이 없다고 문제가 없었다는 뜻은 아닙니다. 건물주·기관 평가가 아닙니다.`,
+      more: "자료: 311 난방·온수 신고 2025-11 ~ 2026-10, NYC Open Data PLUTO(세대 수·준공 연도), HPD 주택 위반 기록(점검 2025-11-01 ~ 2026-11-10, §27-2029·§27-2031). 「모든 세대 1,000곳당」의 분모는 신고가 없는 건물을 포함한 PLUTO의 모든 주거 세대입니다. 세부 지역별 세대 대비 비율은 PLUTO의 커뮤니티 보드 열이 없어 계산하지 않았습니다. 자세한 내용: reports/building_report.md" });
+  }
   function renderPlaces() {
     $("places-applies").innerHTML = appliesBar("places");
     const s = Object.assign({}, st);
@@ -691,7 +722,7 @@
           (bt ? `<p><b>${esc(pShort(st.p))}</b>: 같은 주소에 같은 유형이 2건 이상인 신고 ${(+bt.reports_at_repeated_pct).toFixed(1)}%, 그중 여러 날에 걸친 반복 ${(+bt.reports_at_multi_day_pct).toFixed(1)}%, 상위 1개 주소 비중 ${(+bt.top1_addr_pct).toFixed(1)}%</p>` : "")),
       read: `${T.f}주소의 ${q1.addr_ge2_pct.toFixed(1)}%가 1년 동안 2건 이상 신고됐고, 그 주소들에서 나온 신고가 전체의 ${q1.reports_at_ge2_pct.toFixed(1)}%입니다. ${T.w}같은 주소의 후속 신고를 「재발」이나 「해결 실패」로 읽지 마세요. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소의 반복으로 셉니다.`,
       more: `앞 신고가 아직 종료 기록이 없을 때 들어온 같은 주소·같은 유형 신고: ${RP.consecutive.while_prev_open_pct.toFixed(1)}%, 종료 기록 후 들어온 신고: ${RP.consecutive.after_prev_closed_pct.toFixed(1)}%. 자세한 내용: <a href="../reports/repeat_address_report.md" target="_blank">반복 주소 보고서</a>` });
-    $("places-body").innerHTML = c1 + c2 + c3;
+    $("places-body").innerHTML = c1 + c2 + c3 + buildingCard();
   }
 
   // ======================= 4. TIME =======================
@@ -917,6 +948,7 @@
     ["group", "같은 날·장소·유형으로 묶은 신고", "동일 조건 신고 그룹 (incident_group_id)", "같은 접수일·자치구·주소 비교 키·유형·세부 유형의 신고를 하나로 묶은 것. 실제 사건 수가 아님. 문제가 여러 날 이어지면 날마다 다른 묶음."],
     ["matched", "비슷한 업무 구성이 되도록 맞춘 비교", "보정·가중 비교 (공통 비중 가중)", "민원 유형·세부 유형·접수 월·담당 기관이 같은 묶음에서, 두 집단의 묶음 비중을 평균 낸 공통 비중으로 가중해 중앙값·비율을 계산. 양쪽에 3건 이상 있는 묶음만 사용."],
     ["sens", "기준을 바꿔도 결과가 같은가", "민감도 분석", "분기 단위, 즉시·중복 종료 제외, 다른 종료 기준, 묶음당 1건, 작은 묶음 제외로 바꿔 다시 계산해 방향과 크기가 유지되는지 확인."],
+    ["building", "건물 규모와 위반 기록", "PLUTO unitsres · HPD Housing Maintenance Code Violations", "PLUTO는 뉴욕시 도시계획국의 필지별 건물 정보(주거 세대 수·준공 연도 등, 현재 시점 값). HPD 위반 기록은 주택보존개발국 점검에서 발부된 위반으로, 여기서는 난방(§27-2029)·온수(§27-2031) 조항만 씀. 점검은 대부분 신고로 시작되므로 신고와 위반은 서로 독립적이지 않음."],
     ["weather", "날씨 사건과 신고", "NOAA GHCN-Daily, Central Park (USW00094728)", "미국 기상청(NOAA NCEI)의 센트럴파크 관측소 일별 기온·강수·적설·풍속. 관측소 1곳으로 뉴욕시 전체를 대신하므로 자치구마다 실제 날씨와 다를 수 있음. 신고와 날씨가 같은 날 함께 움직였다는 관찰이며 원인이 아님."],
     ["rereport", "종결 후 재접수율", "re-report rate after closure", "종결된 신고 뒤 N일 안에 같은 번지 주소·같은 유형으로 새 신고가 들어온 비율. 분모는 종결 후 N일을 끝까지 지켜볼 수 있었던 종결 건(신규 접수 자료 끝 2026-10-31). 같은 건물의 다른 세대·새 문제·같은 사람의 재신고를 구분할 수 없어 「해결 실패율」이 아님."],
     ["survival", "아직 열린 신고까지 넣은 시간 계산", "생존 분석 (Kaplan-Meier)", "관찰 마감까지 종료 기록이 없는 신고를 버리지 않고 「그 시점까지는 열려 있었다」로 반영해 절반·90% 시점을 계산하는 방법. 종료된 건만으로 계산하면 오래 걸리는 신고가 빠져 시간이 짧게 나옴."],
