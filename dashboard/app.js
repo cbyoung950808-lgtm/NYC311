@@ -621,6 +621,33 @@
   }
 
   // ======================= 3. PLACES =======================
+  // ---------- concentrated addresses: surroundings (OSM) and reporting pattern (reports/poi_report.md) ----------
+  function poiCard() {
+    const PD = window.POI_DATA; if (!PD) return "";
+    const pc = v => v == null ? "-" : `${(+v).toFixed(0)}%`, f1 = v => v == null ? "-" : (+v).toFixed(1);
+    const sel = st.b >= 0 ? B[st.b] : null;
+    const ch = r => r.mobile_pct >= 90 ? `앱 ${pc(r.mobile_pct)}` : r.online_pct >= 90 ? `온라인 ${pc(r.online_pct)}` : r.phone_pct >= 50 ? `전화 ${pc(r.phone_pct)}` : `온라인 ${pc(r.online_pct)}·앱 ${pc(r.mobile_pct)}`;
+    const kind = r => r.within_1min_pct >= 20 ? "몰아서 연속 접수" : r.active_days >= 300 && r.per_active_day >= 10 ? "매일 꾸준히 접수" : "-";
+    const rows = PD.top.map(r => ({ cls: sel && r.borough === sel ? "hlrow" : "", cells: [r.rank, `${esc(BKO[r.borough] || r.borough)} · ${esc(r.address_key)}`, `${esc(KO[r.main_type] || r.main_type)} ${f1(r.main_share)}%`, fmtN(r.n),
+      `${r.active_days}일`, `<b>${f1(r.within_1min_pct)}%</b> <small>(${f1(r.b_within_1min)}%)</small>`, `${ch(r)} <small>(비교: 온라인 ${pc(r.b_online)}·앱 ${pc(r.b_mobile)})</small>`, esc(kind(r)), esc(r.notably_more_within_250m || "두드러진 장소 없음")] }));
+    const sm = table(["장소 (OSM)", "250m 안에 1곳 이상인 집중 주소", "비교 주소보다 두드러진 집중 주소", "백분위 중앙값 (50 = 중간)"],
+      PD.summary.map(r => [esc(r.category), `${r.targets_with_any_250m} / ${PD.top.length}`, r.targets_notably_more, (+r.median_pctile).toFixed(0)]), { num: [1, 2, 3] });
+    const cats = [["school", "학교"], ["bar", "술집·클럽"], ["park", "공원"], ["worship", "종교시설"], ["station", "역"], ["parking", "주차장"]];
+    const ct = table(["묶음 (비교 주소 수)", ...cats.map(c => c[1])], PD.corr.map(r => [`${esc(BKO[r.borough] || r.borough)} ${esc(KO[r.main_type] || r.main_type)} (${fmtN(r.addresses)})`, ...cats.map(([k]) => r[k] == null ? "-" : (+r[k]).toFixed(2))]), { num: [1, 2, 3, 4, 5, 6] });
+    const fg = PD.focus_gap.filter(r => r.gap !== "첫 신고"), fgT = fg.reduce((t, r) => t + r.n, 0);
+    const order = ["10초 이내", "11~60초", "1~10분", "10~60분", "1시간 초과"];
+    const fgt = table(["앞 신고와의 간격", "신고", "비중"], order.map(k => fg.find(r => r.gap === k)).filter(Boolean).map(r => [esc(r.gap), fmtN(r.n), pctF(r.n, fgT)]), { num: [1, 2] });
+    return card({ id: "places-poi", cls: "fixed", q: "신고가 몰린 주소: 주변 장소 때문인가요?",
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과 (신고 상위 30개 주소)</span> 집중 주소 반경 250m의 학교·술집·클럽·카지노·묘지·공원·쇼핑몰 등 13종 장소(OpenStreetMap)를, 같은 자치구·같은 유형 신고가 5건 이상인 다른 주소들과 비교하고, 신고가 들어온 방식도 함께 봅니다 ${help("poi")}.`,
+      meta: meta("곳, %", "집중 주소 vs 같은 자치구·유형의 다른 주소", `OSM 장소 약 3만 2천 곳 (자료 기준 ${esc(PD.osm_timestamp.slice(0, 10))}) · 번지 주소`),
+      body: `<h4 class="minih">주변 장소: 비교 주소 가운데 어디쯤인가?</h4>` + sm +
+        details("신고 수와 주변 장소 수의 관계 (순위 상관, 비교 주소 전체)", ct + `<p class="note">0에 가까우면 관계가 없다는 뜻입니다. 주소가 1,000곳 이상인 묶음만 보여 줍니다.</p>`) +
+        `<h4 class="minih">신고가 들어온 방식 (상위 30개 주소)</h4>` +
+        details("30개 주소 모두 보기", table(["순위", "주소", "주된 유형", "신고", "신고가 있었던 날", "1분 안 연속 (비교)", "접수 경로", "패턴", "250m 안 두드러진 장소"], rows, { num: [0, 3, 4] }), "tbl") +
+        details("655 East 230th St: 앞 신고와의 간격", fgt),
+      read: `${T.f}집중 주소 주변의 장소 수는 비교 주소들 가운데 대체로 중간이고(백분위 중앙값 37~56), 비교 주소 전체에서도 신고 수와 주변 장소 수의 관계는 거의 없습니다(순위 상관 -0.12~+0.06). 대신 다수가 한 가지 접수 경로로만 들어오고, 「1분 안에 연속 접수」 또는 「1년 300일 이상 매일 접수」 패턴을 보입니다. 메트로폴리탄 미술관 앞 노점 신고처럼 장소 자체가 이유로 보이는 경우는 드뭅니다. ${T.m}적은 수의 신고자가 반복 접수했을 가능성이 있지만, 신고자 정보가 없어 확인할 수 없습니다. ${T.w}특정 주민을 추정하는 근거로 쓰지 마세요. 장소가 가깝다고 원인이라는 뜻이 아니며, OSM은 빠진 장소가 있을 수 있습니다.`,
+      more: "장소: OpenStreetMap(© OpenStreetMap contributors, ODbL) 13종. 주소 좌표 = 그 주소 신고들의 위도·경도 중앙값. 두드러짐 = 250m 안의 수가 비교 주소의 90백분위 이상이고 1곳 이상. 1분 안 연속 = 같은 주소의 앞 신고와 60초 이내. 비교 = 같은 자치구·유형의 다른 주소 신고(상위 30곳 제외). 패턴 분류: 1분 안 연속 20% 이상 = 「몰아서 연속 접수」, 300일 이상·하루 10건 이상 = 「매일 꾸준히 접수」. 자세한 내용: reports/poi_report.md" });
+  }
   // ---------- heat complaints by building size (PLUTO + HPD violations; reports/building_report.md) ----------
   function buildingCard() {
     const BD = window.BUILDING_DATA; if (!BD) return "";
@@ -736,7 +763,7 @@
           (bt ? `<p><b>${esc(pShort(st.p))}</b>: 같은 주소에 같은 유형이 2건 이상인 신고 ${(+bt.reports_at_repeated_pct).toFixed(1)}%, 그중 여러 날에 걸친 반복 ${(+bt.reports_at_multi_day_pct).toFixed(1)}%, 상위 1개 주소 비중 ${(+bt.top1_addr_pct).toFixed(1)}%</p>` : "")),
       read: `${T.f}주소의 ${q1.addr_ge2_pct.toFixed(1)}%가 1년 동안 2건 이상 신고됐고, 그 주소들에서 나온 신고가 전체의 ${q1.reports_at_ge2_pct.toFixed(1)}%입니다. ${T.w}같은 주소의 후속 신고를 「재발」이나 「해결 실패」로 읽지 마세요. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소의 반복으로 셉니다.`,
       more: `앞 신고가 아직 종료 기록이 없을 때 들어온 같은 주소·같은 유형 신고: ${RP.consecutive.while_prev_open_pct.toFixed(1)}%, 종료 기록 후 들어온 신고: ${RP.consecutive.after_prev_closed_pct.toFixed(1)}%. 자세한 내용: <a href="../reports/repeat_address_report.md" target="_blank">반복 주소 보고서</a>` });
-    $("places-body").innerHTML = c1 + c2 + c3 + buildingCard();
+    $("places-body").innerHTML = c1 + c2 + c3 + poiCard() + buildingCard();
   }
 
   // ======================= 4. TIME =======================
@@ -962,6 +989,7 @@
     ["group", "같은 날·장소·유형으로 묶은 신고", "동일 조건 신고 그룹 (incident_group_id)", "같은 접수일·자치구·주소 비교 키·유형·세부 유형의 신고를 하나로 묶은 것. 실제 사건 수가 아님. 문제가 여러 날 이어지면 날마다 다른 묶음."],
     ["matched", "비슷한 업무 구성이 되도록 맞춘 비교", "보정·가중 비교 (공통 비중 가중)", "민원 유형·세부 유형·접수 월·담당 기관이 같은 묶음에서, 두 집단의 묶음 비중을 평균 낸 공통 비중으로 가중해 중앙값·비율을 계산. 양쪽에 3건 이상 있는 묶음만 사용."],
     ["sens", "기준을 바꿔도 결과가 같은가", "민감도 분석", "분기 단위, 즉시·중복 종료 제외, 다른 종료 기준, 묶음당 1건, 작은 묶음 제외로 바꿔 다시 계산해 방향과 크기가 유지되는지 확인."],
+    ["poi", "주변 장소 (지도 자료)", "OpenStreetMap POI (Overpass API)", "자원봉사자가 만드는 공개 지도 OpenStreetMap에서 받은 학교·술집·클럽·카지노·묘지·공원·쇼핑몰·종교시설·병원·공연장·역·주차장·자동차 정비소 위치(2026-07 기준). 빠지거나 위치가 다른 장소가 있을 수 있음. 가까이 있다고 신고의 원인이라는 뜻이 아님."],
     ["building", "건물 규모와 위반 기록", "PLUTO unitsres · HPD Housing Maintenance Code Violations", "PLUTO는 뉴욕시 도시계획국의 필지별 건물 정보(주거 세대 수·준공 연도 등, 현재 시점 값). HPD 위반 기록은 주택보존개발국 점검에서 발부된 위반으로, 여기서는 난방(§27-2029)·온수(§27-2031) 조항만 씀. 점검은 대부분 신고로 시작되므로 신고와 위반은 서로 독립적이지 않음."],
     ["weather", "날씨 사건과 신고", "NOAA GHCN-Daily, Central Park (USW00094728)", "미국 기상청(NOAA NCEI)의 센트럴파크 관측소 일별 기온·강수·적설·풍속. 관측소 1곳으로 뉴욕시 전체를 대신하므로 자치구마다 실제 날씨와 다를 수 있음. 신고와 날씨가 같은 날 함께 움직였다는 관찰이며 원인이 아님."],
     ["rereport", "종결 후 재접수율", "re-report rate after closure", "종결된 신고 뒤 N일 안에 같은 번지 주소·같은 유형으로 새 신고가 들어온 비율. 분모는 종결 후 N일을 끝까지 지켜볼 수 있었던 종결 건(신규 접수 자료 끝 2026-10-31). 같은 건물의 다른 세대·새 문제·같은 사람의 재신고를 구분할 수 없어 「해결 실패율」이 아님."],

@@ -17,6 +17,7 @@ TITLES = {
     "surge_delay_report": "신고가 몰리면 종료가 늦어지는가",
     "heat_record_change_report": "난방·온수 기록 방식 변화 점검",
     "building_report": "건물 규모로 본 난방·온수 신고",
+    "poi_report": "신고가 몰린 주소: 주변 장소와 신고 패턴",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 
