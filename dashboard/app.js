@@ -646,11 +646,19 @@
       body: `<div class="kpis">${kp.map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
         `<h4 class="minih">자치구: 세대 수로 나눠도 많은가?</h4>` + bt +
         `<h4 class="minih">건물 규모별</h4>` + st_ +
+        (BD.cb ? `<h4 class="minih">세부 지역: 세대 수로 나눠도 많은가?</h4>` + (() => {
+          const sel = st.cd >= 0 ? CBS[st.cd] : null, cs = BD.cb_summary, mc = Math.max(...BD.cb.map(r => r.days_per_1000));
+          const lab = r => `${BKO[r.borough] || r.borough} ${+r.cb.slice(0, 2)}`;
+          const row = r => ({ cls: (st.b >= 0 && B[st.b] === r.borough) || (sel && r.cb === sel) ? "hlrow" : "", cells: [esc(lab(r)), fmtN(r.units), `${r.rank_requests}위`, `<b>${f0(r.days_per_1000)}</b>`, bar(r.days_per_1000, mc, "var(--s1)"), `${r.rank_per_unit}위`, `×${r.city_ratio.toFixed(1)}`] });
+          const head = ["지역", "주거 세대", "신고 건수 순위", "세대 1,000곳당 신고일", "", "세대 대비 순위", "뉴욕시 평균 대비"];
+          return table(head, BD.cb.slice(0, 10).map(row), { num: [1, 2, 3, 5, 6] }) +
+            details(`59곳 모두 보기 (세대 대비 순)`, table(head, BD.cb.map(row), { num: [1, 2, 3, 5, 6] })) +
+            `<p class="note">뉴욕시 평균 세대 1,000곳당 ${f0(cs.city_per_1000)}일. 신고 건수 순위와 세대 대비 순위의 순위 상관 ${cs.rank_corr_requests_vs_per_unit.toFixed(2)}. 지역마다 신고일이 가장 많은 건물 1곳을 빼도 상위 5곳은 같습니다. 위에서 고른 자치구·세부 지역은 강조 표시됩니다.</p>`; })() : "") +
         details("준공 연도별", at) +
         details("신고가 오래 반복된 건물일수록 위반 기록이 있나?", vt + `<p class="note">HPD 점검은 대부분 신고로 시작되므로, 신고가 많으면 위반이 발견될 기회도 많습니다(위반 건물의 ${BD.violations.pct_violation_buildings_with_complaint.toFixed(0)}%에 같은 기간 난방 신고가 있음).</p>`) +
         details("더 들여다볼 후보: 세 조건 조합", ct + `<p class="note">반복 = 1년 중 10일 이상 신고. 세대 대비 상위 = 6세대 이상 건물 중 세대 10곳당 신고일 상위 10%(${BD.rate_cut.toFixed(1)}일 이상). 위반 = 난방(§27-2029)·온수(§27-2031) 위반 기록 1건 이상. 순위가 아니며 건물 주소는 보고서 표에만 있습니다.</p>`),
-      read: `${T.f}세대 수로 나눠도 브롱크스가 가장 많고(다른 자치구의 약 2배 이상), 20~99세대의 중간 규모 건물과 1946년 이전 건물에서 많습니다. 신고는 일부 건물에 몰려 있고, 오래 반복된 건물일수록 위반 기록도 많습니다.${fp ? ` 집중 주소(655 East 230th St, ${fp.unitsres}세대, ${fp.yearbuilt}년)는 난방 신고가 25건뿐이고 위반 기록이 없어, 난방 문제 건물이 아닙니다(신고 대부분이 주거 소음).` : ""} ${T.w}세대 수는 PLUTO 현재값이고, 위반 기록이 없다고 문제가 없었다는 뜻은 아닙니다. 건물주·기관 평가가 아닙니다.`,
-      more: "자료: 311 난방·온수 신고 2025-11 ~ 2026-10, NYC Open Data PLUTO(세대 수·준공 연도), HPD 주택 위반 기록(점검 2025-11-01 ~ 2026-11-10, §27-2029·§27-2031). 「모든 세대 1,000곳당」의 분모는 신고가 없는 건물을 포함한 PLUTO의 모든 주거 세대입니다. 세부 지역별 세대 대비 비율은 PLUTO의 커뮤니티 보드 열이 없어 계산하지 않았습니다. 자세한 내용: reports/building_report.md" });
+      read: `${T.f}세대 수로 나눠도 브롱크스가 가장 많고(다른 자치구의 약 2배 이상), 세부 지역으로는 브롱크스 7·4·5, 맨해튼 12·10이 뉴욕시 평균의 약 2.7~3.4배입니다. 20~99세대의 중간 규모 건물과 1946년 이전 건물에서 많습니다. 신고는 일부 건물에 몰려 있고, 오래 반복된 건물일수록 위반 기록도 많습니다.${fp ? ` 집중 주소(655 East 230th St, ${fp.unitsres}세대, ${fp.yearbuilt}년)는 난방 신고가 25건뿐이고 위반 기록이 없어, 난방 문제 건물이 아닙니다(신고 대부분이 주거 소음).` : ""} ${T.w}세대 수는 PLUTO 현재값이고, 위반 기록이 없다고 문제가 없었다는 뜻은 아닙니다. 건물주·기관 평가가 아닙니다.`,
+      more: "자료: 311 난방·온수 신고 2025-11 ~ 2026-10, NYC Open Data PLUTO(세대 수·준공 연도), HPD 주택 위반 기록(점검 2025-11-01 ~ 2026-11-10, §27-2029·§27-2031). 「모든 세대 1,000곳당」의 분모는 신고가 없는 건물을 포함한 PLUTO의 모든 주거 세대입니다. 세부 지역 분모 = 그 지역 PLUTO의 모든 주거 세대(PLUTO 커뮤니티 보드 기준, 311 신고의 지역과 99.999% 일치). 자세한 내용: reports/building_report.md" });
   }
   function renderPlaces() {
     $("places-applies").innerHTML = appliesBar("places");
