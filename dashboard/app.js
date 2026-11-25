@@ -517,7 +517,7 @@
       snow_ice: `${T.f}눈이 온 날부터 2일 동안 평소의 약 14배, 혹한 때 약 12배였습니다.`,
       heat: `${T.f}최저 -7°C 이하인 날에는 평소의 약 1.9배였습니다. 10월 중순의 급증은 날씨 사건이 아니라 난방 시즌 시작 무렵입니다.`,
       pothole: `${T.f}눈·추위·큰비가 온 날에는 오히려 평소보다 적었습니다(약 0.8배). 가장 많았던 날은 2월 폭설이 녹던 2/26~28입니다. ${T.m}3월 집중은 그날 날씨보다 겨울 뒤 한꺼번에 드러나는 모습에 가까워 보입니다(확인 안 됨).`,
-      hydrant: `${T.f}최고 32°C 이상인 날 평소의 약 3.4배였고, 이때 접수는 오히려 빨리 종료 기록이 남았습니다.`,
+      hydrant: `${T.f}최고 32°C 이상인 날 평소의 약 3.4배였습니다. 단순 비교로는 이때 빨리 종료 기록이 남았지만, 즉시 종결되는 소화전 긴급 신고가 몰린 영향입니다. 세부 유형·자치구·월을 맞추면 신고가 몰릴 때 오히려 조금 늦어졌습니다(+3%p, surge_delay_report).`,
       sewer_flood: `${T.f}비 25mm 이상인 날과 다음 날 평소의 약 2.6배였습니다.`,
       tree: `${T.f}큰비 때 약 2.3배, 바람 센 날 약 2배였습니다. 2026-06-07처럼 센트럴파크에 큰비가 없었던 급증은 국지적 폭풍일 수 있습니다.`,
       noise_street: `${T.f}더운 날에도 차이가 작고(약 1.2배), 비·추위·바람 센 날에는 적었습니다.`,
@@ -698,6 +698,28 @@
   function delaySum(s) { return DL.filter(r => (s.m < 0 || r[0] === s.m) && (s.b < 0 || r[1] === s.b) && (s.a < 0 || r[2] === s.a) && (s.p < 0 || r[3] === s.p) && (!s.x || r[4] === 0))
     .reduce((t, r) => [t[0] + r[5], t[1] + r[6], t[2] + r[7], t[3] + r[8]], [0, 0, 0, 0]); }
   // ---------- re-report after closure, and survival view of closure time (reports/rereport_report.md) ----------
+  // ---------- surge vs closure delay (reports/surge_delay_report.md) ----------
+  function surgeCard() {
+    const SG = window.SURGE_DATA; if (!SG) return "";
+    const pp = v => `${v > 0 ? "+" : ""}${v.toFixed(1)}%p`, pc = v => v == null ? "-" : `${v.toFixed(1)}%`;
+    const order = ["heat", "hydrant", "tree", "pothole"];
+    const sel = st.p >= 0 ? ({ "HEAT/HOT WATER": "heat", "Damaged Tree": "tree", "Street Condition": "pothole", "Water System": "hydrant", "Water Maintenance": "hydrant" })[P[st.p]] : null;
+    const rows = [];
+    order.forEach(g => ["open7", "open30"].forEach(mt => { const a = SG.assessment.find(r => r.group === g && r.metric === mt && r.compare === "surge vs normal"); if (!a) return;
+      rows.push({ cls: g === sel ? "hlrow" : "", cells: [esc(a.label), mt === "open7" ? "7일" : "30일", pc(a.adj_t), pc(a.adj_r), `<b>${pp(a.diff_main)}</b>`, `${pp(a.diff_min)} ~ ${pp(a.diff_max)}`, esc(a.status)] }); }));
+    const cats = ["중복", "안내·접수 확인", "위반·문제 없음", "출입·확인 실패", "조치·위반 발부 기록"];
+    const wt = table(["업무", ...cats], order.map(g => { const w = SG.wording.filter(r => r.group === g); return [esc(w[0] ? w[0].label : g), ...cats.map(c => { const r = w.find(x => x.category === c); return r && (r.adj_t || r.adj_r) ? pp(r.diff_pp) : "-"; })]; }), { num: [1, 2, 3, 4, 5] });
+    const pt = table(["업무", "수준", "신고", "주로 언제", "7일 안에 종료 기록 없음", "30일", "절반 시점 (생존 분석)"],
+      SG.plain.map(r => [esc(r.label), { normal: "평소", elevated: "조금 많음 (1.25~2배)", surge: "몰림 (2배 이상)" }[r.level], fmtN(r.n), esc(r.months), pc(r.open7), pc(r.open30), r.km_median_h == null ? "-" : fmtHtxt(r.km_median_h)]), { num: [2, 4, 5, 6] });
+    return card({ id: "time-c6", cls: "fixed", q: "신고가 몰리면 종료 기록이 늦어지나요?",
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과 (4개 업무)</span> 같은 자치구·같은 업무에서 접수 직전 7일의 신고가 <b>평소(직전 28일의 보통 수준)의 2배 이상</b>이었을 때 접수된 신고를 평소 신고와 비교합니다. 자치구·세부 유형·접수 월이 같은 신고끼리 맞춘 값입니다 ${help("matched")}.`,
+      meta: meta("%, %p", "신고 몰림 vs 평소 (맞춘 비교)", "포트홀·난방·온수·손상된 나무·소화전 · 2025-12-06 ~ 2026-10-31 접수 · 관찰 마감 2026-11-11 가정"),
+      body: table(["업무", "이 기간 안에 종료 기록 없음", "몰림", "평소", "차이", "기준을 바꾼 범위", "판정"], rows, { num: [2, 3, 4, 5] }) +
+        details("신고가 몰렸을 때 종결 문구 비중의 차이 (몰림 − 평소)", wt + `<p class="note">종결된 신고 중 각 문구로 닫힌 비율의 차이(맞춘 비교). 「-」는 그 업무에서 쓰이지 않는 문구입니다.</p>`) +
+        details("단순 비교 (계절·세부 유형이 섞인 값)", pt),
+      read: `${T.f}난방·온수와 소화전은 신고가 몰릴 때 조금 늦어졌고(+3~4%p), 손상된 나무는 오히려 빨리 닫혔습니다(-7%p). 포트홀은 기준에 따라 방향이 바뀌어 판단을 보류합니다. 소화전은 단순 비교로는 몰릴 때 빨리 닫힌 것처럼 보이지만, 즉시 종결되는 긴급 신고가 몰린 영향입니다. 난방은 몰릴 때 「중복」 종결이 약 8%p 늘었습니다. ${T.w}여기서 업무량은 접수량이며 기관의 인력·출동 기록은 없습니다. 신고가 몰린 때는 날씨·업무 난도도 함께 바뀌므로 원인으로 읽지 마세요.`,
+      more: "업무량 = 접수일 직전 7일 동안 같은 자치구·업무의 신고 수. 평소 = 그 값의 직전 28일 중앙값. 몰림 = 2배 이상, 평소 = 1.25배 미만. 처음 35일은 평소 수준을 계산할 수 없어 제외. 기준을 바꾼 3가지: 평소 56일, 몰림 기준 1.5배, 같은 날·장소·유형 묶음당 1건. 모든 기준에서 같은 방향이고 2.5%p 이상이면 「유지」. 포트홀은 평소 56일 기준에서 비교 가능한 신고가 12%뿐이라 방향이 바뀝니다. 자세한 내용: reports/surge_delay_report.md" });
+  }
   function rereportCards() {
     const RR = window.REREPORT_DATA; if (!RR) return "";
     const pIdx = n => P.indexOf(n), pNm = n => pIdx(n) >= 0 ? pShort(pIdx(n)) : n;
@@ -839,7 +861,7 @@
         (shaky.length ? details(`기준에 따라 흔들려 보류한 조합 ${shaky.length}개`, `<ul class="cand">${shaky.map(c => `<li>${cLabel(c)} — ${cVal(c)} · ${esc(c.status)}</li>`).join("")}</ul>`) : ""),
       read: `${T.f}단순 비교에서 4~5시간 나던 자치구 차이가 맞춘 비교에서는 크게 줄거나 방향이 바뀝니다. ${T.m}자치구 차이의 대부분은 「어떤 업무가 많은가」의 차이입니다. ${T.w}맞춘 뒤 남은 차이도 지역의 순수한 영향이나 성과가 아닙니다. 세부 업무, 종료 기록 방식, 현장 조건이 섞여 있을 수 있습니다.`,
       more: "기준을 바꿔도: 접수 시기를 분기로, 같은 초에 닫힌 기록과 「중복」 문구로 닫힌 기록 제외, 기존 EDA의 종료 기준, 같은 날·장소·유형 묶음당 1건만, 작은 묶음(10건 미만) 제외. 조사 대상은 이 모든 기준에서 같은 방향이고, 차이가 1.25배(또는 2.5%p) 이상 남은 경우입니다. 자세한 내용: <a href=\"../reports/resolution_playbook_report.md\" target=\"_blank\">종료 시간 보고서</a>" });
-    $("time-body").innerHTML = c1 + c2 + c3 + rereportCards();
+    $("time-body").innerHTML = c1 + c2 + c3 + surgeCard() + rereportCards();
   }
 
   // ======================= MORE: agency charts =======================
