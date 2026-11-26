@@ -20,6 +20,7 @@ TITLES = {
     "poi_report": "신고가 몰린 주소: 주변 장소와 신고 패턴",
     "place_centred_report": "장소 주변의 신고: 무엇이, 언제 더 많은가",
     "repeat_profile_report": "반복 신고 주소의 건물·주변 특성",
+    "nycha_report": "공공임대주택(NYCHA)과 311 신고",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 

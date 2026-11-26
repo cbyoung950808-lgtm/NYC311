@@ -716,8 +716,38 @@
         `<h4 class="minih">주변 시설 250m (1 표준편차 늘 때)</h4>` + table(head, poiM.map(mrow), { num: [1, 2, 3, 4] }) +
         details("자치구 (기준: 브루클린)", table(head, boro.map(mrow), { num: [1, 2, 3, 4] })) +
         details("단순 비율: 세대 수별", rateT("units")) + details("단순 비율: 건물 유형별", rateT("cls")) + details("단순 비율: 준공 연도별", rateT("age")),
-      read: `${T.f}반복 주소를 가장 잘 가르는 것은 세대 수입니다(주거 소음·난방·비위생 모두 100세대 이상이 6~19세대보다 약 2.9~3.5배). 같은 규모라도 엘리베이터 아파트는 약 1.35배, 1~2가구 주택은 0.5~0.8배이고, 규모를 맞추면 1947년 이후 건물은 난방 반복이 적습니다(0.56~0.66배). 건물 조건을 맞춰도 브롱크스는 1.3~1.5배입니다. 주변 시설은 대부분 0.8~1.15배로 영향이 작고, 술집이 많은 곳은 오히려 주거 관련 반복이 적습니다. 강조 행은 기준을 바꿔도 유지되고 ×1.25 이상 또는 ×0.8 이하인 것입니다. ${T.w}세대가 많으면 신고할 사람도 많아 반복되기 쉬운 구조적 몫이 섞여 있습니다. 이미 신고된 주소 중에서의 비교이며, 임대 형태·소득·관리 상태는 자료에 없습니다. 건물주·기관 평가가 아닙니다.`,
+      read: `${T.f}반복 주소를 가장 잘 가르는 것은 세대 수입니다(주거 소음·난방·비위생 모두 100세대 이상이 6~19세대보다 약 2.9~3.5배). 같은 규모라도 엘리베이터 아파트는 약 1.35배, 1~2가구 주택은 0.5~0.8배이고, 규모를 맞추면 1947년 이후 건물은 난방 반복이 적습니다(0.56~0.66배). 건물 조건을 맞춰도 브롱크스는 1.3~1.5배입니다. 주변 시설은 대부분 0.8~1.15배로 영향이 작고, 술집이 많은 곳은 오히려 주거 관련 반복이 적습니다. 강조 행은 기준을 바꿔도 유지되고 ×1.25 이상 또는 ×0.8 이하인 것입니다. ${T.w}세대가 많으면 신고할 사람도 많아 반복되기 쉬운 구조적 몫이 섞여 있습니다. 이미 신고된 주소 중에서의 비교이며, 소득·관리 상태는 자료에 없습니다. 공공임대주택(NYCHA) 여부를 넣어도 결과는 거의 같았고, 난방·비위생은 NYCHA 신고가 거의 없어 민간 건물에 대한 결과입니다. 건물주·기관 평가가 아닙니다.`,
       more: "모델: 로지스틱 회귀(반복 여부 ~ 자치구 + 건물 유형 9묶음 + 준공 연도 5구간 + 세대 수 7구간 + 250m 안 시설 8종의 log(1+수) 표준화). 판정 「유지」 = 5일 기준·10일 기준·상위 30 주소 제외 모두 같은 방향이고 95% 구간이 1을 포함하지 않음. 드물거나 결과가 한쪽뿐인 범주는 모델에서 제외. 건물 유형: 1~2가구 주택 A·B, 엘리베이터 없는 아파트 C, 엘리베이터 아파트 D, 콘도 R, 주거+상가 S, 상가·사무실 K·O, 차고·주차 G, 공터 V. 자세한 내용: reports/repeat_profile_report.md" });
+  }
+  // ---------- NYCHA public housing in the 311 data (reports/nycha_report.md) ----------
+  function nychaCard() {
+    const N = window.NYCHA_DATA; if (!N) return "";
+    const S = N.summary, f1 = v => v == null ? "-" : (+v).toFixed(1), pc = v => v == null ? "-" : `${(+v).toFixed(v < 0.1 ? 2 : 1)}%`, fx = v => v == null ? "-" : `×${(+v).toFixed(2)}`;
+    const pName = n => P.indexOf(n) >= 0 ? pShort(P.indexOf(n)) : (KO[n] || n);
+    const sh = table(["유형 (담당)", "전체", "NYCHA 필지", "비중", `세대 비중(${S.unit_share_pct.toFixed(1)}%) 대비`],
+      N.share.filter(r => ["Noise - Residential", "Noise - Street/Sidewalk", "Illegal Parking", "Noise", "HEAT/HOT WATER", "UNSANITARY CONDITION", "PLUMBING", "Blocked Driveway"].includes(r.problem))
+        .map(r => ({ cls: r.ratio_to_unit_share >= 1.5 ? "hlrow" : "", cells: [`${esc(pName(r.problem))} <small>(${esc(r.agency)})</small>`, fmtN(r.n), fmtN(r.n_nycha), pc(r.nycha_pct), fx(r.ratio_to_unit_share)] })), { num: [1, 2, 3, 4] });
+    const pu = N.per_unit.filter(r => ["Noise - Residential", "Noise - Street/Sidewalk", "Illegal Parking", "HEAT/HOT WATER"].includes(r.problem));
+    const BOS = ["(전체)", "BRONX", "BROOKLYN", "MANHATTAN", "QUEENS", "STATEN ISLAND"];
+    const put = table(["자치구", ...["Noise - Residential", "Noise - Street/Sidewalk", "Illegal Parking", "HEAT/HOT WATER"].map(t => `${esc(pName(t))}: NYCHA / 그 밖`)],
+      BOS.map(bo => ({ cls: st.b >= 0 && B[st.b] === bo ? "hlrow" : "", cells: [bo === "(전체)" ? "뉴욕시 전체" : esc(BKO[bo] || bo), ...["Noise - Residential", "Noise - Street/Sidewalk", "Illegal Parking", "HEAT/HOT WATER"].map(t => { const r = pu.find(x => x.problem === t && x.borough === bo); return r ? `<b>${f1(r.nycha)}</b> / ${f1(r.other)}` : "-"; })] })), { num: [1, 2, 3, 4] });
+    const TT = ["Noise - Residential", "Noise - Street/Sidewalk", "Illegal Parking"];
+    const mt = table(["유형", "NYCHA (오즈비, 95% 구간)", "브롱크스: 기본 → NYCHA 포함", "엘리베이터 아파트: 기본 → NYCHA 포함", "100세대+: 기본 → NYCHA 포함"],
+      TT.map(t => { const g = (term, v) => N.model.find(r => r.type === t && r.term === term && r.variant === v); const ny = g("nycha_flag=예", "with_nycha");
+        const pair = term => { const a = g(term, "main"), b = g(term, "with_nycha"); return a && b ? `${fx(a.odds_ratio)} → ${fx(b.odds_ratio)}` : "-"; };
+        return [esc(pName(t)), ny ? `<b>${fx(ny.odds_ratio)}</b> <small>(${fx(ny.lo)} ~ ${fx(ny.hi)})</small>` : "-", pair("borough=BRONX"), pair("cls=엘리베이터 아파트"), pair("units=100+")]; }), { num: [] });
+    const hb = table(["자치구", "NYCHA 세대 비중", "세대 1,000곳당 난방 신고일 (모든 세대)", "NYCHA 세대 제외"],
+      N.heat_borough.map(r => [esc(BKO[r.borough] || r.borough), pc(r.nycha_unit_pct), f1(r.per_1000_all), `<b>${f1(r.per_1000_excl_nycha)}</b>`]), { num: [1, 2, 3] });
+    return card({ id: "places-nycha", cls: "fixed", q: "공공임대주택(NYCHA)에서는 어떤 신고가 들어오나요?",
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과</span> NYCHA 주거 건물 필지 ${fmtN(S.nycha_lots)}곳(주거 세대 ${fmtN(S.nycha_units)}곳, 뉴욕시의 ${S.unit_share_pct.toFixed(1)}%)을 건물 번호(BBL)로 신고와 연결했습니다 ${help("nycha")}.`,
+      meta: meta("건, %, 세대 1,000곳당 신고일", "NYCHA 필지 vs 그 밖의 주거 필지", "NYC Open Data 「NYCHA Residential Addresses」 · 집중 주소(NYCHA 아님)는 세대 대비 계산에서 제외"),
+      body: `<div class="caution">NYCHA 건물의 난방·배관·비위생 같은 주택 관리 신고는 이 데이터에 거의 없습니다(난방·온수 35만 건 중 70건). 그래서 이 대시보드의 난방·비위생 결과는 <b>사실상 NYCHA를 뺀 민간 건물</b>에 대한 것이며, NYCHA 건물에 문제가 없다는 뜻이 아닙니다.</div>` +
+        `<h4 class="minih">NYCHA 필지에 들어온 신고</h4>` + sh +
+        `<h4 class="minih">세대 1,000곳당 신고일</h4>` + put +
+        details("반복 주소 모델에 NYCHA를 넣으면? (오즈비)", mt + `<p class="note">건물 유형·연식·세대 수·자치구·주변 시설을 맞춘 값. 난방·비위생은 NYCHA 주소가 거의 없어 넣지 못했습니다.</p>`) +
+        details("세대 대비 난방: NYCHA 세대를 분모에서 빼면?", hb + `<p class="note">세부 지역 순위는 순위 상관 ${S.rank_corr_cb_heat.toFixed(2)}로 거의 같습니다.</p>`),
+      read: `${T.f}NYCHA는 주거 세대의 ${S.unit_share_pct.toFixed(1)}%지만 주거 소음 신고의 11.2%를 차지하고(세대 대비 약 2.2배), 불법 주차는 적습니다. 반복 주소 모델에 NYCHA를 넣어도 브롱크스·엘리베이터 아파트·세대 수의 효과는 거의 그대로여서, 그 결과들은 NYCHA 때문이 아닙니다. ${T.m}NYCHA 세입자의 수리 요청은 NYCHA 자체 창구로 처리되어 HPD 311 기록에 남지 않는 것으로 보입니다(확인 안 됨). ${T.w}NYCHA 목록은 현재 시점이며, NYCHA 평가가 아닙니다.`,
+      more: "NYCHA 건물 = NYCHA Residential Addresses(2,955개 출입구 주소)의 필지(BBL). 세대 수 = PLUTO 주거 세대. 세대 1,000곳당 신고일 = 필지마다 그 유형 신고가 있었던 날 수의 합 ÷ 세대 수 × 1,000. 자세한 내용: reports/nycha_report.md" });
   }
   // ---------- heat complaints by building size (PLUTO + HPD violations; reports/building_report.md) ----------
   function buildingCard() {
@@ -755,7 +785,7 @@
         details("준공 연도별", at) +
         details("신고가 오래 반복된 건물일수록 위반 기록이 있나?", vt + `<p class="note">HPD 점검은 대부분 신고로 시작되므로, 신고가 많으면 위반이 발견될 기회도 많습니다(위반 건물의 ${BD.violations.pct_violation_buildings_with_complaint.toFixed(0)}%에 같은 기간 난방 신고가 있음).</p>`) +
         details("더 들여다볼 후보: 세 조건 조합", ct + `<p class="note">반복 = 1년 중 10일 이상 신고. 세대 대비 상위 = 6세대 이상 건물 중 세대 10곳당 신고일 상위 10%(${BD.rate_cut.toFixed(1)}일 이상). 위반 = 난방(§27-2029)·온수(§27-2031) 위반 기록 1건 이상. 순위가 아니며 건물 주소는 보고서 표에만 있습니다.</p>`),
-      read: `${T.f}세대 수로 나눠도 브롱크스가 가장 많고(다른 자치구의 약 2배 이상), 세부 지역으로는 브롱크스 7·4·5, 맨해튼 12·10이 뉴욕시 평균의 약 2.7~3.4배입니다. 20~99세대의 중간 규모 건물과 1946년 이전 건물에서 많습니다. 신고는 일부 건물에 몰려 있고, 오래 반복된 건물일수록 위반 기록도 많습니다.${fp ? ` 집중 주소(655 East 230th St, ${fp.unitsres}세대, ${fp.yearbuilt}년)는 난방 신고가 25건뿐이고 위반 기록이 없어, 난방 문제 건물이 아닙니다(신고 대부분이 주거 소음).` : ""} ${T.w}세대 수는 PLUTO 현재값이고, 위반 기록이 없다고 문제가 없었다는 뜻은 아닙니다. 건물주·기관 평가가 아닙니다.`,
+      read: `${T.f}세대 수로 나눠도 브롱크스가 가장 많고(다른 자치구의 약 2배 이상), 세부 지역으로는 브롱크스 7·4·5, 맨해튼 12·10이 뉴욕시 평균의 약 2.7~3.4배입니다. 20~99세대의 중간 규모 건물과 1946년 이전 건물에서 많습니다. 신고는 일부 건물에 몰려 있고, 오래 반복된 건물일수록 위반 기록도 많습니다.${fp ? ` 집중 주소(655 East 230th St, ${fp.unitsres}세대, ${fp.yearbuilt}년)는 난방 신고가 25건뿐이고 위반 기록이 없어, 난방 문제 건물이 아닙니다(신고 대부분이 주거 소음).` : ""} ${T.w}세대 수는 PLUTO 현재값이고, 위반 기록이 없다고 문제가 없었다는 뜻은 아닙니다. 공공임대주택(NYCHA)의 난방 신고는 이 데이터에 거의 없어 사실상 민간 건물에 대한 결과입니다(NYCHA 카드 참고). 건물주·기관 평가가 아닙니다.`,
       more: "자료: 311 난방·온수 신고 2025-11 ~ 2026-10, NYC Open Data PLUTO(세대 수·준공 연도), HPD 주택 위반 기록(점검 2025-11-01 ~ 2026-11-10, §27-2029·§27-2031). 「모든 세대 1,000곳당」의 분모는 신고가 없는 건물을 포함한 PLUTO의 모든 주거 세대입니다. 세부 지역 분모 = 그 지역 PLUTO의 모든 주거 세대(PLUTO 커뮤니티 보드 기준, 311 신고의 지역과 99.999% 일치). 자세한 내용: reports/building_report.md" });
   }
   function renderPlaces() {
@@ -834,7 +864,7 @@
           (bt ? `<p><b>${esc(pShort(st.p))}</b>: 같은 주소에 같은 유형이 2건 이상인 신고 ${(+bt.reports_at_repeated_pct).toFixed(1)}%, 그중 여러 날에 걸친 반복 ${(+bt.reports_at_multi_day_pct).toFixed(1)}%, 상위 1개 주소 비중 ${(+bt.top1_addr_pct).toFixed(1)}%</p>` : "")),
       read: `${T.f}주소의 ${q1.addr_ge2_pct.toFixed(1)}%가 1년 동안 2건 이상 신고됐고, 그 주소들에서 나온 신고가 전체의 ${q1.reports_at_ge2_pct.toFixed(1)}%입니다. ${T.w}같은 주소의 후속 신고를 「재발」이나 「해결 실패」로 읽지 마세요. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소의 반복으로 셉니다.`,
       more: `앞 신고가 아직 종료 기록이 없을 때 들어온 같은 주소·같은 유형 신고: ${RP.consecutive.while_prev_open_pct.toFixed(1)}%, 종료 기록 후 들어온 신고: ${RP.consecutive.after_prev_closed_pct.toFixed(1)}%. 자세한 내용: <a href="../reports/repeat_address_report.md" target="_blank">반복 주소 보고서</a>` });
-    $("places-body").innerHTML = c1 + c2 + c3 + poiCard() + repeatProfileCard() + buildingCard();
+    $("places-body").innerHTML = c1 + c2 + c3 + poiCard() + repeatProfileCard() + nychaCard() + buildingCard();
   }
 
   // ======================= 4. TIME =======================
@@ -1060,6 +1090,7 @@
     ["group", "같은 날·장소·유형으로 묶은 신고", "동일 조건 신고 그룹 (incident_group_id)", "같은 접수일·자치구·주소 비교 키·유형·세부 유형의 신고를 하나로 묶은 것. 실제 사건 수가 아님. 문제가 여러 날 이어지면 날마다 다른 묶음."],
     ["matched", "비슷한 업무 구성이 되도록 맞춘 비교", "보정·가중 비교 (공통 비중 가중)", "민원 유형·세부 유형·접수 월·담당 기관이 같은 묶음에서, 두 집단의 묶음 비중을 평균 낸 공통 비중으로 가중해 중앙값·비율을 계산. 양쪽에 3건 이상 있는 묶음만 사용."],
     ["sens", "기준을 바꿔도 결과가 같은가", "민감도 분석", "분기 단위, 즉시·중복 종료 제외, 다른 종료 기준, 묶음당 1건, 작은 묶음 제외로 바꿔 다시 계산해 방향과 크기가 유지되는지 확인."],
+    ["nycha", "공공임대주택 (NYCHA)", "NYCHA Residential Addresses (NYC Open Data)", "뉴욕시 주택공사(NYCHA)가 운영하는 공공임대주택. 주거 세대의 약 4.3%. NYCHA 세입자의 수리·난방 요청은 NYCHA 자체 창구로 처리되는 것으로 보여, 이 311 데이터에는 NYCHA 건물의 주택 관리 신고가 거의 없음. 소음·주차 같은 경찰청 신고는 들어옴."],
     ["poi", "주변 장소 (지도 자료)", "OpenStreetMap POI (Overpass API)", "자원봉사자가 만드는 공개 지도 OpenStreetMap에서 받은 학교·술집·클럽·카지노·묘지·공원·쇼핑몰·종교시설·병원·공연장·역·주차장·자동차 정비소 위치(2026-07 기준). 빠지거나 위치가 다른 장소가 있을 수 있음. 가까이 있다고 신고의 원인이라는 뜻이 아님."],
     ["building", "건물 규모와 위반 기록", "PLUTO unitsres · HPD Housing Maintenance Code Violations", "PLUTO는 뉴욕시 도시계획국의 필지별 건물 정보(주거 세대 수·준공 연도 등, 현재 시점 값). HPD 위반 기록은 주택보존개발국 점검에서 발부된 위반으로, 여기서는 난방(§27-2029)·온수(§27-2031) 조항만 씀. 점검은 대부분 신고로 시작되므로 신고와 위반은 서로 독립적이지 않음."],
     ["weather", "날씨 사건과 신고", "NOAA GHCN-Daily, Central Park (USW00094728)", "미국 기상청(NOAA NCEI)의 센트럴파크 관측소 일별 기온·강수·적설·풍속. 관측소 1곳으로 뉴욕시 전체를 대신하므로 자치구마다 실제 날씨와 다를 수 있음. 신고와 날씨가 같은 날 함께 움직였다는 관찰이며 원인이 아님."],
