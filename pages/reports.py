@@ -6,6 +6,7 @@ import streamlit as st
 
 REP = Path(__file__).resolve().parents[1] / "reports"
 TITLES = {
+    "events_report": "행사와 신고 증가: 지역·시간별 비교",
     "eda_report": "탐색적 데이터 분석(EDA) 보고서",
     "composition_report": "지역별 민원 유형 구성",
     "repeat_address_report": "동일 주소의 반복 신고",

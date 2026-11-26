@@ -1,0 +1,8 @@
+{
+  "desktop_and_mobile": true,
+  "event_selection": true,
+  "time_window_selection": true,
+  "filter_rerender_preserves_card": true,
+  "single_card_only": true,
+  "console_errors": []
+}
