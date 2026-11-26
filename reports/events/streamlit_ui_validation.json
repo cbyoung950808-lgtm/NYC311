@@ -1,0 +1,7 @@
+{
+  "url": "http://127.0.0.1:8877/",
+  "streamlit_iframe_card": true,
+  "time_window_selection": true,
+  "report_link": "http://127.0.0.1:8877/reports?r=events_report",
+  "report_opens": true
+}

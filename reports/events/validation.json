@@ -1,0 +1,11 @@
+{
+  "bronx_permit_window_independent_count": [
+    48,
+    37
+  ],
+  "matches_saved_results": true,
+  "exposure_unique_district_days": true,
+  "comparisons_unique": true,
+  "minimum_comparison_days": 3,
+  "source_data_writes": false
+}
