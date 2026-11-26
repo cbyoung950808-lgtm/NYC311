@@ -683,6 +683,42 @@
       read: `${T.f}집중 주소 주변의 장소 수는 비교 주소들 가운데 대체로 중간이고(백분위 중앙값 37~56), 비교 주소 전체에서도 신고 수와 주변 장소 수의 관계는 거의 없습니다(순위 상관 -0.12~+0.06). 대신 다수가 한 가지 접수 경로로만 들어오고, 「1분 안에 연속 접수」 또는 「1년 300일 이상 매일 접수」 패턴을 보입니다. 메트로폴리탄 미술관 앞 노점 신고처럼 장소 자체가 이유로 보이는 경우는 드뭅니다. ${T.m}적은 수의 신고자가 반복 접수했을 가능성이 있지만, 신고자 정보가 없어 확인할 수 없습니다. ${T.w}특정 주민을 추정하는 근거로 쓰지 마세요. 장소가 가깝다고 원인이라는 뜻이 아니며, OSM은 빠진 장소가 있을 수 있습니다.`,
       more: "장소: OpenStreetMap(© OpenStreetMap contributors, ODbL) 13종. 주소 좌표 = 그 주소 신고들의 위도·경도 중앙값. 두드러짐 = 250m 안의 수가 비교 주소의 90백분위 이상이고 1곳 이상. 1분 안 연속 = 같은 주소의 앞 신고와 60초 이내. 비교 = 같은 자치구·유형의 다른 주소 신고(상위 30곳 제외). 패턴 분류: 1분 안 연속 20% 이상 = 「몰아서 연속 접수」, 300일 이상·하루 10건 이상 = 「매일 꾸준히 접수」. 자세한 내용: reports/poi_report.md" });
   }
+  // ---------- which addresses become repeated-request addresses (reports/repeat_profile_report.md) ----------
+  let RPT_T = null;
+  function repeatProfileCard() {
+    const RP = window.REPEAT_PROFILE_DATA; if (!RP) return "";
+    const TYPES = RP.coverage.map(r => r.type);
+    const fromSel = st.p >= 0 && TYPES.includes(P[st.p]) ? P[st.p] : null;
+    const T_ = RPT_T || fromSel || "Noise - Residential";
+    const tName = t => P.indexOf(t) >= 0 ? pShort(P.indexOf(t)) : (KO[t] || t);
+    const fx = v => v == null ? "-" : `×${(+v).toFixed(2)}`, pc = v => v == null ? "-" : `${(+v).toFixed(1)}%`;
+    const POIL = { bar: "술집·클럽", school: "학교", park: "공원·놀이터", station: "역", worship: "종교시설", parking: "주차장", auto: "자동차 정비·세차", liquor: "주류 판매점" };
+    const BL = { borough: "자치구", cls: "건물 유형", age: "준공 연도", units: "세대 수" };
+    const termLabel = t => { if (t.startsWith("p_")) return POIL[t.slice(2).split(" ")[0]] || t; const [k, v] = t.split("="); return `${BL[k] || k}: ${k === "borough" ? (BKO[v] || v) : v}${k === "units" ? "세대" : ""}`; };
+    const M = RP.model.filter(r => r.type === T_);
+    const mrow = r => { const sig = r.status === "유지"; return { cls: sig && (r.main >= 1.25 || r.main <= 0.8) ? "hlrow" : "", cells: [esc(termLabel(r.term)), `<b>${fx(r.main)}</b>`, `${fx(r.lo)} ~ ${fx(r.hi)}`, fx(r["10days"]), fx(r.excl_top30), esc(r.status)] }; };
+    const head = ["항목", "오즈비", "95% 구간", "10일 기준", "상위 30 주소 제외", "판정"];
+    const bld = M.filter(r => /^(cls|units|age)=/.test(r.term)).sort((a, b) => a.term.localeCompare(b.term));
+    const poiM = M.filter(r => r.term.startsWith("p_"));
+    const boro = M.filter(r => r.term.startsWith("borough="));
+    const pr = RP.profile.filter(r => r.type === T_ && r.group !== "전체");
+    const prT = table(["묶음", "주소", "준공 연도 중앙값", "세대 수 중앙값", "층수 중앙값", "1~2가구 주택", "엘리베이터 없는 아파트", "엘리베이터 아파트", "주거+상가"],
+      pr.map(r => [esc(r.group), fmtN(r.addresses), Math.round(r.median_year), (+r.median_units).toFixed(0), (+r.median_floors).toFixed(1), pc(r["cls_1~2가구 주택"]), pc(r["cls_엘리베이터 없는 아파트"]), pc(r["cls_엘리베이터 아파트"]), pc(r["cls_주거+상가"])]), { num: [1, 2, 3, 4, 5, 6, 7, 8] });
+    const rateT = f => { const rr = RP.rates.filter(r => r.type === T_ && r.feature === f && r.addresses >= 30); const mx = Math.max(...rr.map(r => r.rep_rate), 1);
+      return table(["구간", "주소", "반복 주소 비율 (5일+)", "", "10일+"], rr.map(r => [esc(r.level), fmtN(r.addresses), `<b>${pc(r.rep_rate)}</b>`, `<span class="hbarc"><i style="width:${(r.rep_rate / mx * 100).toFixed(1)}%;background:var(--s1)"></i></span>`, pc(r.rep10_rate)]), { num: [1, 2, 4] }); };
+    const cov = RP.coverage.find(r => r.type === T_);
+    const sel = `<label class="tgl">유형 <select id="rpt-t">${TYPES.map(t => `<option value="${esc(t)}"${t === T_ ? " selected" : ""}>${esc(tName(t))}</option>`).join("")}</select></label>`;
+    return card({ id: "places-rpt", cls: "fixed", q: "어떤 주소가 「반복 신고 주소」가 되나요? (건물 연식·규모·유형과 주변 시설)",
+      what: `<span class="fixtag">유형 조건만 반영 (6개 유형)</span> 그 유형 신고가 1건 이상 있는 주소 가운데 1년에 <b>5일 이상</b> 신고된 주소(반복 주소)를, 건물 정보(PLUTO)와 250m 안 시설(OpenStreetMap)로 비교합니다. 자치구·건물 유형·연식·세대 수·주변 시설을 함께 넣은 모델로 각 특성의 몫을 따로 봅니다 ${help("building")}.`,
+      meta: meta("오즈비 (1보다 크면 반복 주소가 되기 쉬움), %", "기준: 브루클린 · 엘리베이터 없는 아파트 · 1920~46년 · 6~19세대 · 시설은 1 표준편차 늘 때", cov ? `${esc(tName(T_))} 신고 주소 ${fmtN(cov.addresses)}곳 중 PLUTO 연결 ${fmtN(cov.in_pluto)}곳 · 반복 주소 ${fmtN(cov.repeated)}곳` : ""),
+      body: sel + `<h4 class="minih">반복 주소 vs 1일만 신고된 주소</h4>` + prT +
+        `<h4 class="minih">건물 특성 (다른 특성을 함께 맞춘 값)</h4>` + table(head, bld.map(mrow), { num: [1, 2, 3, 4] }) +
+        `<h4 class="minih">주변 시설 250m (1 표준편차 늘 때)</h4>` + table(head, poiM.map(mrow), { num: [1, 2, 3, 4] }) +
+        details("자치구 (기준: 브루클린)", table(head, boro.map(mrow), { num: [1, 2, 3, 4] })) +
+        details("단순 비율: 세대 수별", rateT("units")) + details("단순 비율: 건물 유형별", rateT("cls")) + details("단순 비율: 준공 연도별", rateT("age")),
+      read: `${T.f}반복 주소를 가장 잘 가르는 것은 세대 수입니다(주거 소음·난방·비위생 모두 100세대 이상이 6~19세대보다 약 2.9~3.5배). 같은 규모라도 엘리베이터 아파트는 약 1.35배, 1~2가구 주택은 0.5~0.8배이고, 규모를 맞추면 1947년 이후 건물은 난방 반복이 적습니다(0.56~0.66배). 건물 조건을 맞춰도 브롱크스는 1.3~1.5배입니다. 주변 시설은 대부분 0.8~1.15배로 영향이 작고, 술집이 많은 곳은 오히려 주거 관련 반복이 적습니다. 강조 행은 기준을 바꿔도 유지되고 ×1.25 이상 또는 ×0.8 이하인 것입니다. ${T.w}세대가 많으면 신고할 사람도 많아 반복되기 쉬운 구조적 몫이 섞여 있습니다. 이미 신고된 주소 중에서의 비교이며, 임대 형태·소득·관리 상태는 자료에 없습니다. 건물주·기관 평가가 아닙니다.`,
+      more: "모델: 로지스틱 회귀(반복 여부 ~ 자치구 + 건물 유형 9묶음 + 준공 연도 5구간 + 세대 수 7구간 + 250m 안 시설 8종의 log(1+수) 표준화). 판정 「유지」 = 5일 기준·10일 기준·상위 30 주소 제외 모두 같은 방향이고 95% 구간이 1을 포함하지 않음. 드물거나 결과가 한쪽뿐인 범주는 모델에서 제외. 건물 유형: 1~2가구 주택 A·B, 엘리베이터 없는 아파트 C, 엘리베이터 아파트 D, 콘도 R, 주거+상가 S, 상가·사무실 K·O, 차고·주차 G, 공터 V. 자세한 내용: reports/repeat_profile_report.md" });
+  }
   // ---------- heat complaints by building size (PLUTO + HPD violations; reports/building_report.md) ----------
   function buildingCard() {
     const BD = window.BUILDING_DATA; if (!BD) return "";
@@ -798,7 +834,7 @@
           (bt ? `<p><b>${esc(pShort(st.p))}</b>: 같은 주소에 같은 유형이 2건 이상인 신고 ${(+bt.reports_at_repeated_pct).toFixed(1)}%, 그중 여러 날에 걸친 반복 ${(+bt.reports_at_multi_day_pct).toFixed(1)}%, 상위 1개 주소 비중 ${(+bt.top1_addr_pct).toFixed(1)}%</p>` : "")),
       read: `${T.f}주소의 ${q1.addr_ge2_pct.toFixed(1)}%가 1년 동안 2건 이상 신고됐고, 그 주소들에서 나온 신고가 전체의 ${q1.reports_at_ge2_pct.toFixed(1)}%입니다. ${T.w}같은 주소의 후속 신고를 「재발」이나 「해결 실패」로 읽지 마세요. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소의 반복으로 셉니다.`,
       more: `앞 신고가 아직 종료 기록이 없을 때 들어온 같은 주소·같은 유형 신고: ${RP.consecutive.while_prev_open_pct.toFixed(1)}%, 종료 기록 후 들어온 신고: ${RP.consecutive.after_prev_closed_pct.toFixed(1)}%. 자세한 내용: <a href="../reports/repeat_address_report.md" target="_blank">반복 주소 보고서</a>` });
-    $("places-body").innerHTML = c1 + c2 + c3 + poiCard() + buildingCard();
+    $("places-body").innerHTML = c1 + c2 + c3 + poiCard() + repeatProfileCard() + buildingCard();
   }
 
   // ======================= 4. TIME =======================
@@ -1120,6 +1156,7 @@
     if (t.dataset.tab) show(t.dataset.tab);
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeHelp(); });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "rpt-t") { RPT_T = e.target.value; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "pl-c") { PL_C = e.target.value; render(); } });
   document.addEventListener("click", e => { const tr = e.target.closest && e.target.closest("tr[data-plc]"); if (tr) { PL_C = tr.dataset.plc; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "wx-g") { WX_G = e.target.value; render(); } });
