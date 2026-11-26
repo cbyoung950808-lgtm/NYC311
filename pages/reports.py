@@ -22,6 +22,7 @@ TITLES = {
     "place_centred_report": "장소 주변의 신고: 무엇이, 언제 더 많은가",
     "repeat_profile_report": "반복 신고 주소의 건물·주변 특성",
     "nycha_report": "공공임대주택(NYCHA)과 311 신고",
+    "revalidation_report": "두 해 비교 재검증",
 }
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 
