@@ -310,3 +310,11 @@ table.heat tr.drow th, table.heat tr.drow td { background: #f7f7f4; font-size: 1
 tr.hlrow td { background: color-mix(in srgb, var(--s1) 12%, transparent); font-weight: 600; }
 .hbarc { display: inline-block; width: 140px; max-width: 30vw; height: 10px; background: var(--grid); border-radius: 5px; overflow: hidden; vertical-align: middle; }
 .hbarc i { display: block; height: 100%; border-radius: 5px; }
+
+/* ---------- year selector (2026-11-26) ---------- */
+.yearsel { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink2); margin-right: 6px; }
+.yearsel select { font-size: 14px; padding: 5px 8px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent-bg); color: var(--ink); max-width: 100%; }
+.year-prev .yearsel select { border-color: var(--s2); background: #fdeee6; }
+.yearnote { font-size: 13px; line-height: 1.55; color: var(--warn); background: var(--warn-bg); border-radius: 8px; padding: 7px 12px; margin-top: 8px; margin-bottom: 8px; }
+.yearline { font-size: 13px; color: var(--ink2); margin: 8px 0 0; }
+@media (max-width: 640px) { .yearsel { width: 100%; margin: 4px 0; } .yearsel select { flex: 1; } }

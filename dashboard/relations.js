@@ -225,10 +225,10 @@
 
       <h3 class="block-h"><span class="bn">예시 2</span>교란 요인(시간): 「1월에 처리가 가장 느렸다?」</h3>
       <div class="grid2">
-        <figure class="card"><figcaption>월별 HPD 비중 vs 전체 처리 시간 중앙값<span class="sub">12개월 · 기존 EDA 표 23 · 점선 = NYPD 중앙값 평균</span></figcaption><div id="d1-s3"></div></figure>
+        <figure class="card"><figcaption>월별 HPD 비중 vs 전체 처리 시간 중앙값<span class="sub">12개월 · ${window.YEAR && window.YEAR.key === "prev" ? "지난해 자료로 같은 방식 계산" : "기존 EDA 표 23"} · 점선 = NYPD 중앙값 평균</span></figcaption><div id="d1-s3"></div></figure>
         <div class="card readbox">
           <p>${tag.f}HPD 비중이 높은 달일수록 전체 중앙값이 깁니다(ρ = ${spearman(t23.map(r => +r.hpd_share_pct), t23.map(r => +r.med_all)).rho.toFixed(2)}). 같은 기간 NYPD 중앙값은 매달 ${Math.min(...t23.map(r => +r.med_nypd))}~${Math.max(...t23.map(r => +r.med_nypd))}시간으로 거의 같습니다.</p>
-          <p>${tag.f}월별 유형 구성을 연간 구성으로 고정하면 월별 중앙값의 차이가 4.93배에서 1.23배로 줄어듭니다(EDA 3-4절).</p>
+          ${window.YEAR && window.YEAR.key === "prev" ? "" : `<p>${tag.f}월별 유형 구성을 연간 구성으로 고정하면 월별 중앙값의 차이가 4.93배에서 1.23배로 줄어듭니다(EDA 3-4절).</p>`}
           <p>${tag.m}「1월에 처리가 느려졌다」기보다 「1월에 오래 걸리는 유형이 많이 들어왔다」에 가깝습니다. 다만 처리 속도가 전혀 변하지 않았다는 증명은 아닙니다.</p>
         </div>
       </div>
@@ -238,7 +238,7 @@
         <p>${tag.f}브롱크스 12번 커뮤니티 보드는 집중 주소(655 EAST 230 STREET)를 포함하면 <b>군집 ${lblA + 1}</b>(${esc(namesFor(R.cb.all, kD)[lblA])}), 제외하면 <b>군집 ${lblN + 1}</b>(${esc(namesFor(R.cb.no_focus, kD)[lblN])})에 들어갑니다(k = ${kD}).</p>
         <p>${tag.f}이 지역에서 최다 주소 비중은 포함 시 ${cbA.values.top_addr_pct[idx12].toFixed(1)}%, 제외 시 ${R.cb.no_focus.values.top_addr_pct[idx12].toFixed(1)}%입니다.</p>
         <p>${tag.c}군집이나 상관을 볼 때는 극단값을 넣고 뺀 결과를 함께 봐야 합니다. 「③ 군집」에서 집중 주소 포함·제외를 바꿔 직접 확인할 수 있습니다.</p>
-        <p class="note">주의: 군집 번호는 이름표일 뿐입니다. 지역 군집은 구조가 약해(실루엣 약 0.26) 경계 근처의 지역은 작은 변화에도 다른 묶음으로 갑니다. 군집이 바뀌었다는 사실만으로 그 지역의 특성이 바뀌었다고 말할 수 없고, 위의 최다 주소 비중처럼 실제로 달라진 지표를 함께 봐야 합니다.</p>
+        <p class="note">주의: 군집 번호는 이름표일 뿐입니다. 지역 군집은 구조가 약해(${window.YEAR && window.YEAR.key === "prev" ? "올해 기준 " : ""}실루엣 약 0.26) 경계 근처의 지역은 작은 변화에도 다른 묶음으로 갑니다. 군집이 바뀌었다는 사실만으로 그 지역의 특성이 바뀌었다고 말할 수 없고, 위의 최다 주소 비중처럼 실제로 달라진 지표를 함께 봐야 합니다.</p>
       </div>
 
       <div class="card"><h3 class="ch">인과에 가까이 가려면 필요한 것</h3>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NYC 311 신고 살펴보기</title>
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=25">
 </head>
 <body>
 <header class="top">
@@ -67,7 +67,7 @@
       <li>실제로 문제가 얼마나 생겼는지, 얼마나 심각한지 (신고 수 ≠ 문제의 양)</li>
       <li>문제가 실제로 해결·수리됐는지 (종료 기록 ≠ 해결)</li>
       <li>차이의 원인 (날씨, 주택 형태, 기관 업무 방식 등은 이 자료에 없음)</li>
-      <li>매년 반복되는 현상인지 (1년 자료)</li></ul></div>
+      <li>매년 반복되는 현상인지 (두 해 자료뿐, 위쪽 「기준 연도」로 지난해를 볼 수 있음)</li></ul></div>
   </div>
   <h3 class="sub-h">처음이라면 이 순서로 보세요</h3>
   <ol class="steps">
@@ -164,8 +164,21 @@
 <script src="data/repeat_profile_data.js?v=24"></script>
 <script src="data/nycha_data.js?v=24"></script>
 <script src="data/revalidation_data.js?v=24"></script>
-<script src="relations.js?v=24"></script>
-<script src="app.js?v=24"></script>
+<!-- Previous year (2024-11 ~ 2025-10) data and the year switch (2026-11-26) -->
+<script src="data/prev/dashboard_data.js?v=y1"></script>
+<script src="data/prev/explore_data.js?v=y1"></script>
+<script src="data/prev/relations_data.js?v=y1"></script>
+<script src="data/prev/rereport_data.js?v=y1"></script>
+<script src="data/prev/weather_data.js?v=y1"></script>
+<script src="data/prev/surge_data.js?v=y1"></script>
+<script src="data/prev/building_data.js?v=y1"></script>
+<script src="data/prev/poi_data.js?v=y1"></script>
+<script src="data/prev/place_data.js?v=y1"></script>
+<script src="data/prev/repeat_profile_data.js?v=y1"></script>
+<script src="data/prev/nycha_data.js?v=y1"></script>
+<script src="year.js?v=y1"></script>
+<script src="relations.js?v=25"></script>
+<script src="app.js?v=25"></script>
 <!-- Independent permitted-events module -->
 <script src="data/events_data.js?v=events-20261126"></script>
 <script src="events.js?v=events-20261126"></script>
