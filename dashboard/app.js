@@ -424,6 +424,72 @@
     return m;
   }
   const noP = () => Object.assign({}, st, { p: -1 });
+  // ---------- community district map (2026-11-28; build_map_data.py) ----------
+  let MAP_M = "rate";
+  function spearman(xs, ys) {
+    const rank = a => { const o = a.map((v, i) => [v, i]).sort((p, q) => p[0] - q[0]), r = new Array(a.length);
+      for (let i = 0; i < o.length;) { let j = i; while (j + 1 < o.length && o[j + 1][0] === o[i][0]) j++; for (let k = i; k <= j; k++) r[o[k][1]] = (i + j) / 2 + 1; i = j + 1; } return r; };
+    const rx = rank(xs), ry = rank(ys), n = xs.length, mx = (n + 1) / 2;
+    let a = 0, b = 0, c = 0; for (let i = 0; i < n; i++) { a += (rx[i] - mx) * (ry[i] - mx); b += (rx[i] - mx) ** 2; c += (ry[i] - mx) ** 2; }
+    return b && c ? a / Math.sqrt(b * c) : null;
+  }
+  function mapCard() {
+    const MD = window.MAP_DATA; if (!MD) return "";
+    const CEN = MD.census, BDc = window.BUILDING_DATA && window.BUILDING_DATA.cb;
+    const per = (st.m < 0 && BOTH) ? 2 : 1;   // two-year view: yearly average
+    const byCb = rows => { const m = {}; rows.forEach(r => { m[CBS[r[0]]] = (m[CBS[r[0]]] || 0) + r[6]; }); return m; };
+    const OPTS = [["rate", "신고 수 ÷ 인구 (1,000명당)"], ["share", "고른 유형의 지역 안 비중"], ...(BDc ? [["heat", "세대 대비 난방 신고일"]] : []), ["renter", "임차 가구 비율 (2020 인구조사)"]];
+    if (!OPTS.some(o => o[0] === MAP_M)) MAP_M = "rate";
+    if (MAP_M === "share" && st.p < 0) MAP_M = "rate";
+    let val = {}, unit = "", what = "";
+    const cond = Object.assign({}, st, { b: -1, cd: -1 });
+    if (MAP_M === "rate") { const n = byCb(cbRows(cond)); Object.keys(CEN).forEach(k => { val[k] = CEN[k].pop ? (n[k] || 0) / per / CEN[k].pop * 1000 : null; });
+      unit = `건 / 주민 1,000명${st.m >= 0 ? " (한 달)" : per === 2 ? " (1년 평균)" : " (1년)"}`; what = "현재 조건(유형·기관·기간·집중 주소)의 신고를 2020년 인구로 나눈 값입니다. 주민이 아닌 사람(통근자·관광객)의 신고도 들어 있어 맨해튼 중심가는 높게 나옵니다."; }
+    else if (MAP_M === "share") { const n = byCb(cbRows(cond)), d = byCb(cbRows(Object.assign({}, cond, { p: -1 }))); Object.keys(CEN).forEach(k => { val[k] = d[k] ? (n[k] || 0) / d[k] * 100 : null; });
+      unit = `% (그 지역 신고 중 ${esc(pShort(st.p))})`; what = "각 세부 지역의 신고 중 고른 유형의 비중입니다(분모 = 그 지역의 모든 유형 신고)."; }
+    else if (MAP_M === "heat") { BDc.forEach(r => { val[r.cb] = r.days_per_1000; }); unit = "난방 신고일 / 주거 세대 1,000곳"; what = "건물마다 난방 신고가 있었던 날을 더해 PLUTO 주거 세대 수로 나눈 값입니다(3번 화면 건물 카드와 같은 값)."; }
+    else { Object.keys(CEN).forEach(k => { val[k] = CEN[k].renter_pct; }); unit = "% (거주 가구 중 임차 가구)"; what = "2020년 인구조사(전수)의 거주 가구 중 임차 가구 비율입니다. 311 자료가 아니며, 신고하는 사람의 주거 형태를 뜻하지도 않습니다."; }
+    const vs = Object.values(val).filter(v => v != null).sort((a, b) => a - b);
+    const qs = [0.2, 0.4, 0.6, 0.8].map(q => vs[Math.floor(q * (vs.length - 1))]);
+    const COLS = ["#e3eefb", "#b9d3f2", "#7fb0e6", "#3f84d3", "#1d5aa8"];
+    const bin = v => v == null ? -1 : qs.filter(q => v > q).length;
+    const fmtV = v => v == null ? "-" : MAP_M === "rate" && v >= 100 ? fmtN(v) : v.toFixed(1);
+    const [vw, vh] = MD.viewbox;
+    let svg = "";
+    MD.shapes.forEach(sh => {
+      if (sh.jia) { svg += `<path d="${sh.d}" fill="#efeee9" stroke="#fff" stroke-width="0.6" data-tip="${esc(`<b>공동 관리 구역</b><br>공원·공항 등 (${sh.code})`)}"/>`; return; }
+      const v = val[sh.cb], i = CBS.indexOf(sh.cb), b = bin(v), sel = st.cd >= 0 && CBS[st.cd] === sh.cb, inB = st.b >= 0 && B[st.b] === sh.boro;
+      const tipTxt = `<b>${esc(cbLabel(i))}</b><br>${fmtV(v)} ${esc(unit)}${MAP_M !== "renter" && CEN[sh.cb] ? `<br>임차 가구 ${CEN[sh.cb].renter_pct}%` : ""}<br><small>누르면 이 세부 지역을 고름</small>`;
+      svg += `<path class="cdp" d="${sh.d}" fill="${b < 0 ? "#f3f3f0" : COLS[b]}" stroke="${sel ? "#141413" : inB ? "#4a4945" : "#fff"}" stroke-width="${sel ? 2.2 : inB ? 1.1 : 0.6}"${i >= 0 ? ` data-setcd="${i}"` : ""} data-tip="${esc(tipTxt)}"/>`;
+    });
+    const legendHtml = legend(COLS.map((c, k) => [c, k === 0 ? `${fmtV(vs[0])} ~ ${fmtV(qs[0])}` : k === 4 ? `${fmtV(qs[3])} ~ ${fmtV(vs[vs.length - 1])}` : `${fmtV(qs[k - 1])} ~ ${fmtV(qs[k])}`]).concat([["#efeee9", "공원·공항 등"]]));
+    const ranked = Object.keys(val).filter(k => val[k] != null).sort((a, b) => val[b] - val[a]);
+    const lab = k => cbLabel(CBS.indexOf(k));
+    // renter share alongside (descriptive)
+    let pair = "";
+    if (MAP_M !== "renter") {
+      const ks = ranked.filter(k => CEN[k] && CEN[k].renter_pct != null), rho = spearman(ks.map(k => CEN[k].renter_pct), ks.map(k => val[k]));
+      const x0 = 20, x1 = 100, maxY = Math.max(...ks.map(k => val[k])), Wd = 520, Hh = 220, L = 50, Bm = 32, T0 = 10;
+      const X = x => L + (x - x0) / (x1 - x0) * (Wd - L - 10), Yp = y => T0 + (Hh - T0 - Bm) * (1 - y / (maxY || 1));
+      let sc = `<line x1="${L}" x2="${Wd - 10}" y1="${Hh - Bm}" y2="${Hh - Bm}" stroke="var(--grid)"/>`;
+      [20, 40, 60, 80, 100].forEach(t => { sc += `<text x="${X(t)}" y="${Hh - Bm + 16}" font-size="11" text-anchor="middle" fill="var(--muted)">${t}%</text>`; });
+      sc += `<text x="${(L + Wd) / 2}" y="${Hh - 4}" font-size="11" text-anchor="middle" fill="var(--muted)">임차 가구 비율 (2020)</text>`;
+      [0, 0.5, 1].forEach(f => { const v = maxY * f; sc += `<line x1="${L}" x2="${Wd - 10}" y1="${Yp(v).toFixed(1)}" y2="${Yp(v).toFixed(1)}" stroke="var(--grid)" stroke-dasharray="${f ? "3 3" : ""}"/><text x="${L - 6}" y="${(Yp(v) + 4).toFixed(1)}" font-size="11" text-anchor="end" fill="var(--muted)">${fmtV(v)}</text>`; });
+      sc += `<text x="12" y="${T0 + 4}" font-size="11" fill="var(--muted)">↑ 지도 값</text>`;
+      ks.forEach(k => { const sel = st.cd >= 0 && CBS[st.cd] === k; sc += `<circle cx="${X(CEN[k].renter_pct).toFixed(1)}" cy="${Yp(val[k]).toFixed(1)}" r="${sel ? 6 : 4}" fill="${BCOL[k.slice(3)] || GRAY}" fill-opacity="0.8" stroke="${sel ? "#141413" : "#fff"}" data-setcd="${CBS.indexOf(k)}" data-tip="${esc(`<b>${lab(k)}</b><br>임차 ${CEN[k].renter_pct}% · ${fmtV(val[k])} ${unit}`)}"/>`; });
+      pair = details(`임차 가구 비율과 함께 보기 (순위 상관 ${rho == null ? "-" : rho.toFixed(2)})`,
+        legend(KB.map(b => [BCOL[B[b]], bLabel(b)])) + `<svg class="chart" viewBox="0 0 ${Wd} ${Hh}" role="img" aria-label="임차 가구 비율과 지도 값">${sc}</svg>` +
+        `<p class="note">점 하나가 세부 지역 하나입니다. 순위 상관(스피어만) ${rho == null ? "-" : rho.toFixed(2)}: 1에 가까우면 임차 비율이 높은 지역일수록 이 값도 높은 편, 0에 가까우면 관계가 약함. ${T.w}함께 나타나는 정도일 뿐 원인이 아니며, 임차 비율은 2020년 값이고 자치구·건물 규모·소득 같은 다른 차이가 섞여 있습니다.</p>`, "readmore");
+    }
+    const sel = `<label class="tgl">지도에 칠할 값 <select id="map-m">${OPTS.map(([k, t]) => `<option value="${k}"${k === MAP_M ? " selected" : ""}${k === "share" && st.p < 0 ? " disabled" : ""}>${t}${k === "share" && st.p < 0 ? " (위에서 유형을 고르면)" : ""}</option>`).join("")}</select></label>`;
+    return card({ id: "where-map", q: "지도로 보면 어디가 높은가요? (세부 지역 59곳)",
+      what: `${esc(what)} 지역을 누르면 그 세부 지역을 고릅니다.`,
+      meta: meta(esc(unit), "다섯 구간(같은 수의 지역씩)", `${MAP_M === "renter" ? "2020년 인구조사" : `${YR.label} · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}${st.x ? " · 집중 주소 제외" : ""}`} · 311 신고의 세부 지역 값 기준`),
+      body: sel + legendHtml + `<svg class="chart cdmap" viewBox="0 0 ${vw} ${vh}" role="img" aria-label="세부 지역 지도">${svg}</svg>` +
+        details("59곳 값 모두 보기 (높은 순)", table(["세부 지역", "값", "임차 가구", "2020 인구"], ranked.map(k => ({ cls: st.cd >= 0 && CBS[st.cd] === k ? "hlrow" : "", attr: ` data-setcd="${CBS.indexOf(k)}"`, cells: [esc(lab(k)), fmtV(val[k]), `${CEN[k] ? CEN[k].renter_pct : "-"}%`, CEN[k] ? fmtN(CEN[k].pop) : "-"] })), { num: [1, 2, 3] })) + pair,
+      read: ranked.length ? `${T.f}가장 높은 곳은 ${ranked.slice(0, 3).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}, 가장 낮은 곳은 ${ranked.slice(-2).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}입니다. ${T.w}색은 순위에 따른 구간이라 차이의 크기를 그대로 나타내지 않습니다. 지역 평가나 순위 매김이 아닙니다.` : "",
+      more: `경계: 뉴욕시 도시계획국(DCP) 커뮤니티 디스트릭트(NYC Open Data 5crt-au7u), 화면용으로 단순화. 인구·임차 가구: 2020년 인구조사(DHC, 전수) DCP 집계. 311 신고는 자료의 커뮤니티 보드 값으로 나눴고 좌표로 다시 배정하지 않았습니다(표준 59곳에 연결된 신고만). 공원·공항 같은 공동 관리 구역(JIA)은 회색. 자세한 인구 대비 분석: <a href="../reports/population_report.md" target="_blank">인구 대비 보고서</a>` });
+  }
   function renderWhere() {
     $("where-applies").innerHTML = appliesBar("where");
     const R = regionInfo();
@@ -503,7 +569,7 @@
         read: `${T.w}이 그래프는 건수의 분포입니다. 인구·주택 수를 반영하지 않았고, 한 주소의 반복 신고가 큰 몫을 차지할 수 있습니다.`,
         next: goBtn("places", "이 유형이 몇몇 주소에 몰렸는지 보기") + goBtn("when", "언제 늘어나는지 보기") + goBtn("time", "종료 기록까지 걸린 시간 보기") });
     }
-    $("where-body").innerHTML = c1 + c2 + c3 + placeCard();
+    $("where-body").innerHTML = c1 + c2 + mapCard() + c3 + placeCard();
   }
 
   // ======================= 2. WHEN =======================
@@ -1437,7 +1503,7 @@
         ["2026-11-11 00:00 (가정)", "관찰 마감: 이 전에 종료 시각이 있으면 종료로 봄. 기록된 종료 시각이 2026-11-11 03:25에서 끝나서 정함", "7일·30일 종료 기록 없음, 맞춘 비교, 생존 분석, 급증·지연"],
         ["2026-11-12", "원본 파일 날짜. 반복 주소 보고서는 이 날을 기준으로 씀(11-11과 결과 차이 0.01%p 이내)", "반복 주소 보고서"],
         ["2026-11-10 (점검일 끝)", "HPD 난방·온수 위반 기록을 받은 범위 (2025-11-01부터)", "3번 화면 건물 카드"],
-      ]) + `<h4>지원하지 않는 것</h4><ul><li>여러 달을 묶은 기간 선택(백분위수를 정확히 합칠 수 없음)</li><li>주소 순위에서 유형+기간 동시 선택, 세부 지역 단위 주소 순위·처리 시간·요일/시간대</li><li>인구 대비 비율(<a href="../reports/population_report.md" target="_blank">인구 대비 보고서</a> 참고), 지도, 실시간 자료</li></ul>
+      ]) + `<h4>지원하지 않는 것</h4><ul><li>여러 달을 묶은 기간 선택(백분위수를 정확히 합칠 수 없음)</li><li>주소 순위에서 유형+기간 동시 선택, 세부 지역 단위 주소 순위·처리 시간·요일/시간대</li><li>실시간 자료, 소득 같은 인구조사 밖의 자료(지도와 인구 1,000명당 신고·2020년 임차 가구 비율은 1번 화면 지도 카드, 자세한 인구 대비 분석은 <a href="../reports/population_report.md" target="_blank">인구 대비 보고서</a>)</li></ul>
         <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a> · <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성</a> · <a href="../reports/reclass_check_report.md" target="_blank">유형 이름 변경</a> · <a href="../reports/rereport_report.md" target="_blank">재접수·생존 분석</a> · <a href="../reports/weather_report.md" target="_blank">날씨</a> · <a href="../reports/surge_delay_report.md" target="_blank">급증과 지연</a> · <a href="../reports/heat_record_change_report.md" target="_blank">난방 기록 변화</a> · <a href="../reports/building_report.md" target="_blank">건물 규모</a> · <a href="../reports/population_report.md" target="_blank">인구 대비</a> · <a href="../reports/spike_events_review.md" target="_blank">급증일 단서·두 해 보기</a></p>`;
     }
     $("help-body").innerHTML = h; fixLinks($("help-body"));
@@ -1494,6 +1560,7 @@
   document.addEventListener("click", e => { const tr = e.target.closest && e.target.closest("tr[data-plc]"); if (tr) { PL_C = tr.dataset.plc; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "wx-g") { WX_G = e.target.value; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "prop-n") { PROP_N = +e.target.value; render(); } });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "map-m") { MAP_M = e.target.value; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "ws-merge") { MERGE_WS = e.target.checked; render(); } });
   window.addEventListener("hashchange", () => { const v0 = st.v; fromHash(); if (st.v !== v0) show(st.v); else render(); });
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
