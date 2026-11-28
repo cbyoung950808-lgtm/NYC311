@@ -80,6 +80,17 @@ EVIDENCE = [
     ]),
 ]
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
+# short names for the contents buttons (button text does not wrap); the full title shows on hover
+SHORT = {
+    "heat_priority_proposal": "제안 1: 선제 점검", "no_access_revisit_proposal": "제안 2: 빠른 재방문",
+    "false_report_feasibility_review": "허위·오류 신고 검토", "eda_report": "탐색적 분석(EDA)", "population_report": "인구 대비 신고",
+    "composition_report": "지역별 유형 구성", "monthly_composition_report": "월별 유형 구성", "repeat_address_report": "같은 주소 반복",
+    "repeat_profile_report": "반복 주소의 특성", "building_report": "건물 규모와 난방", "nycha_report": "공공임대주택(NYCHA)",
+    "poi_report": "신고가 몰린 주소", "place_centred_report": "장소 바로 옆 신고", "weather_report": "날씨와 신고",
+    "surge_delay_report": "몰릴 때 종료 지연", "events_report": "행사와 신고", "spike_events_review": "급증일·행사 검증",
+    "resolution_playbook_report": "자치구별 종료 시간", "rereport_report": "종결 후 재접수", "heat_record_change_report": "난방 기록 방식 변화",
+    "revalidation_report": "두 해 비교 재검증", "year_dashboard_report": "지난해 화면", "reclass_check_report": "유형 이름 변경 영향",
+}
 
 try:
     UPDATED = json.loads((REP / "_updated.json").read_text(encoding="utf-8"))
@@ -111,7 +122,7 @@ if name == "index":
     st.title("분석 보고서")
     st.markdown("뉴욕시 311 신고 두 해치(2024-11 ~ 2026-10)를 분석한 보고서입니다. **제안 → 타당성 검토 → 근거** 순서로 읽으면 됩니다. "
                 "보고서 이름을 누르면 열립니다. 각 보고서의 실행 방법과 수정 이력은 본문 끝 접힌 칸에 있습니다.")
-    W = [3, 6, 1.3]
+    W = [3, 5.8, 1.2]
 
     def table_rows(items):
         h = st.columns(W)
@@ -119,7 +130,7 @@ if name == "index":
             c.caption(f"**{t}**")
         for n, line in items:
             c1, c2, c3 = st.columns(W)
-            c1.button(TITLES.get(n, n), key=f"go-{n}", on_click=go, args=(n,), type="tertiary")
+            c1.button(SHORT.get(n, TITLES.get(n, n)), key=f"go-{n}", on_click=go, args=(n,), type="tertiary", help=TITLES.get(n, n))
             c2.markdown(line)
             c3.caption(UPDATED.get(n, ""))
         st.divider()
