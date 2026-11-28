@@ -390,7 +390,40 @@
       read: `${T.f}두 해 모두 출입 실패 뒤에는 더 빨리 다시 신고가 들어왔고(맞춘 7일 차이 +${mt("prev").request_7d}%p / +${mt("cur").request_7d}%p), 다시 들어온 신고가 또 출입 실패로 닫히는 비율도 조치 종결 뒤보다 높았습니다. 다시 들어온 신고의 절반은 2일 안에 들어와, 재방문은 1~3일 안이어야 재접수를 앞설 수 있습니다. ${T.w}재접수는 해결 실패가 아니고, 같은 세입자인지 알 수 없습니다. 출입 실패의 원인과 실제 재방문 여부는 자료에 없습니다. 두 해의 크기(출입 실패 비중 ${sc.prev.no_access_share_pct}% / ${sc.cur.no_access_share_pct}%)가 달라 기록 방식 변화가 섞였을 수 있습니다.`,
       more: `출입 실패·조치 = 종결 문구 분류(종료 시간 비교 분석과 같은 규칙). 종결 = 접수 뒤 닫히고 관찰 마감(다음 해 11-11) 전. 다음 신고 = 같은 자치구·주소 비교 키·유형으로 종결 뒤 처음 들어온 신고(그해 파일 안). 맞춘 비교 = rereport 분석의 「조치·위반 발부」 대비 직접 표준화. 자세한 내용: <a href="../reports/no_access_revisit_proposal.md" target="_blank">제안 2 보고서</a>` });
   }
+  // first screen: one-page story, problem -> proposal -> check -> how to run -> expected effect (2026-11-28, final review)
+  function storyCard() {
+    const PD = window.PROPOSAL_DATA; if (!PD) return "";
+    const pc = v => `${(v * 100).toFixed(1)}%`, at = (rule, n) => PD.results.find(r => r.rule === rule && r.N === n);
+    const best = at("days", 1000), rnd = at("random", 1000), up = at("units_private", 1000), NA = PD.no_access;
+    const COLS = ["문제", "제안", "검증 결과", "실행 방법 (시범)", "기대 효과"];
+    const cell = (k, html) => `<div><span class="k">${k}</span>${html}</div>`;
+    const row = (title, sub, cells) => `<div class="rh">${title}<small>${sub}</small></div>` + cells.map((c, i) => cell(COLS[i], c)).join("");
+    const r1 = row("제안 1", "시즌 전", [
+      `<span class="big">상위 1%</span>난방 신고가 있었던 필지 중 상위 1%가 신고의 약 24%. 같은 곳이 해마다 다시 나옵니다`,
+      `9월 말, 직전 1년 <b>신고가 있었던 날이 많은 필지 1,000곳</b>을 시즌 전에 먼저 점검`,
+      `<span class="big">${pc(best.share_days)}</span>시즌 전 목록이 2025-26 시즌 난방 신고일을 미리 포함. 무작위 ${pc(rnd.share_days)}, 세대 수 많은 순 ${up ? pc(up.share_days) : "-"}`,
+      `상위 2,000곳을 무작위로 반씩: 선제 점검 vs 지금처럼. 주 지표 = 필지당 시즌 신고일`,
+      `시즌 신고일의 약 5분의 1이 나오는 필지에 먼저 닿음. <b>문제 감소 효과는 시범으로 확인</b>`]);
+    const nc = NA ? NA.scale.cur : null, tmv = (y, c) => (NA.timing.find(r => r.year === y && r.rcat === c) || {}).within_1d;
+    const lpv = (y, c) => (NA.loop.find(r => r.year === y && r.rcat === c && r.next_cat === "출입·확인 실패") || {}).share_pct;
+    const mt = y => (NA.matched.find(r => r.year === y) || {}).request_7d, CY = "2025-11 ~ 2026-10";
+    const r2 = NA ? row("제안 2", "시즌 중", [
+      `<span class="big">${fmtN(nc.no_access)}건</span>올해 난방 종결의 ${nc.no_access_share_pct}%가 「출입·확인 실패」. 하루 안 재접수 ${tmv(CY, "출입·확인 실패")}% (조치 뒤 ${tmv(CY, "조치·위반 발부 기록")}%)`,
+      `출입 실패로 닫히면 세입자의 재신고를 기다리지 않고 <b>1~3일 안 재방문</b>을 잡고 시간을 미리 안내`,
+      `<span class="big">두 해 모두</span>맞춘 7일 재접수 +${mt("prev")}%p / +${mt("cur")}%p. 다시 들어와도 또 출입 실패 ${lpv(CY, "출입·확인 실패")}% (조치 뒤 ${lpv(CY, "조치·위반 발부 기록")}%)`,
+      `시즌 중 출입 실패 종결을 무작위로 반씩: 예약 재방문 vs 지금처럼. 주 지표 = 조치·위반 발부까지 걸린 날`,
+      `재신고를 기다리는 시간과 반복 출입 실패를 줄일 수 있는지 확인. <b>효과는 아직 검증 안 됨</b>`]) : "";
+    return `<figure class="card story" id="home-story-card">
+      <figcaption><span class="cq">한 장 요약: 겨울 난방 점검을 시즌 전과 시즌 중에 돕는 두 제안</span></figcaption>
+      <p class="lead">대상 사용자: 뉴욕시 주택보존개발국(HPD) 난방 점검팀, 311 안내, 세입자 단체. 두 해(2024-11 ~ 2026-10) 311 자료로 확인했고, 기준 연도 선택과 관계없이 같습니다.</p>
+      <div class="story-grid">${["", ...COLS].map(c => `<div class="sh">${c}</div>`).join("")}${r1}${r2}</div>
+      <p class="flow"><b>시즌 전</b> 반복 필지 선제 점검 → <b>시즌 중</b> 출입 실패 신고 빠른 재방문. 둘 다 HPD 난방 점검 한 가지 업무라 함께 시범할 수 있습니다(대상은 겹치지 않게).</p>
+      <div class="read">${T.w}수치는 「목록에 들어간 비중」과 「다시 접수된 비율」입니다. 문제가 줄어든 비율이 아니며, 신고 수는 문제의 양이 아닙니다. 목록은 공개하지 않고 건물주·기관 평가에 쓰지 않습니다.</div>
+      <div class="gobar"><button class="ghost" data-open="fold-prop1">제안 1 자세히 ↓</button><button class="ghost" data-open="fold-prop2">제안 2 자세히 ↓</button>${goBtn("places", "근거: 3번 화면 반복 필지")}${goBtn("time", "근거: 4번 화면 재접수")}</div>
+    </figure>`;
+  }
   function renderHome() {
+    if ($("home-story")) $("home-story").innerHTML = storyCard();
     if ($("home-proposal")) $("home-proposal").innerHTML = proposalCard();
     if ($("home-proposal2")) $("home-proposal2").innerHTML = proposal2Card();
     const o = D.ref.eda_overview, r = D.ref.eda_resolution;
@@ -1592,6 +1625,17 @@
     const done = () => { $("f-copy").textContent = "링크 복사됨"; setTimeout(() => { $("f-copy").textContent = "이 화면 링크 복사"; }, 1500); };
     if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => prompt("링크", url)); else prompt("링크", url);
   });
+  // first screen: "자세히" buttons open the folded proposal; charts are redrawn at the real width once visible
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-open]"); if (!b) return;
+    const d = $(b.dataset.open); if (!d) return;
+    d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  ["fold-prop1", "fold-prop2"].forEach(id => { const d = $(id); if (d) d.addEventListener("toggle", () => {
+    if (!d.open) return;
+    if (id === "fold-prop1" && $("home-proposal")) $("home-proposal").innerHTML = proposalCard();
+    if (id === "fold-prop2" && $("home-proposal2")) $("home-proposal2").innerHTML = proposal2Card();
+  }); });
   document.addEventListener("click", e => {
     const t = e.target.closest("[data-tab],[data-goto],[data-setp],[data-setb],[data-setcd],[data-help],[data-ht],[data-more],#help-close,#help-shade");
     if (!t) return;

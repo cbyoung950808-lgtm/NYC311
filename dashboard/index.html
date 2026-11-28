@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NYC 311 신고 살펴보기</title>
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=h1">
 </head>
 <body>
 <header class="top">
@@ -52,14 +52,18 @@
 <section id="v-home" class="panel">
   <div class="phead">
     <h2>먼저 알아볼 내용</h2>
-    <p class="q">이 데이터는 무엇이고, 무엇을 알 수 있나요?</p>
+    <p class="q">311 난방 신고 기록으로 무엇을 바꿀 수 있나요? 한 장으로 먼저 보고, 근거는 아래에서 펼쳐 봅니다.</p>
   </div>
-  <div id="home-proposal"></div>
-  <div id="home-proposal2"></div>
+  <div id="home-story"></div>
+  <details class="fold" id="fold-prop1"><summary><span class="fold-t">제안 1 자세히</span> 규칙별 비교, 큰 건물 목록과의 비교, 시범 설계, 형평성</summary><div id="home-proposal"></div></details>
+  <details class="fold" id="fold-prop2"><summary><span class="fold-t">제안 2 자세히</span> 두 해 비교 표, 맞춘 비교, 시범 설계</summary><div id="home-proposal2"></div></details>
+  <h3 class="sub-h">근거 자료</h3>
+  <p class="note sub-note">제안의 바탕이 된 분석입니다. 1~4번 화면에서 지역·유형·기간을 바꿔 가며 직접 확인할 수 있습니다.</p>
+  <details class="fold"><summary><span class="fold-t">검증된 주요 발견</span> 6가지 (두 해 자료로 확인)</summary>
+  <div class="findings" id="home-findings"></div></details>
+  <details class="fold"><summary><span class="fold-t">지난해에도 반복되나요?</span> 두 해 비교</summary><div id="home-twoyear"></div></details>
+  <details class="fold"><summary><span class="fold-t">이 데이터는 무엇인가요?</span> 기간·건수·알 수 있는 것과 없는 것</summary>
   <div id="home-data"></div>
-  <h3 class="sub-h">검증된 주요 발견</h3>
-  <div class="findings" id="home-findings"></div>
-  <div id="home-twoyear"></div>
   <div class="grid2">
     <div class="card know"><h3 class="ch">이 화면들로 알 수 있는 것</h3><ul>
       <li>지역·유형·기간별로 <b>신고가 얼마나 접수됐는지</b>와 그 구성</li>
@@ -70,7 +74,7 @@
       <li>문제가 실제로 해결·수리됐는지 (종료 기록 ≠ 해결)</li>
       <li>차이의 원인 (날씨, 주택 형태, 기관 업무 방식 등은 이 자료에 없음)</li>
       <li>매년 반복되는 현상인지 (두 해 자료뿐, 위쪽 「기준 연도」로 지난해를 볼 수 있음)</li></ul></div>
-  </div>
+  </div></details>
   <h3 class="sub-h">처음이라면 이 순서로 보세요</h3>
   <ol class="steps">
     <li><button class="link" data-tab="where">1. 어디서 어떤 신고가?</button> 관심 지역을 고르고, 전체와 비교해 어떤 유형의 비중이 다른지 봅니다.</li>
@@ -190,7 +194,7 @@
 <script src="data/map_data.js?v=m2"></script>
 <script src="year.js?v=y2"></script>
 <script src="relations.js?v=27"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 <!-- Independent permitted-events module -->
 <script src="data/events_data.js?v=events-20261126"></script>
 <script src="events.js?v=events-20261128"></script>
