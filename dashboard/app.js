@@ -314,30 +314,32 @@
   function proposalCard() {
     const PD = window.PROPOSAL_DATA; if (!PD) return "";
     const pc = v => `${(v * 100).toFixed(1)}%`, at = (rule, n) => PD.results.find(r => r.rule === rule && r.N === n);
-    const best = at("days", PROP_N), rnd = at("random", PROP_N);
-    const order = ["days", "volume", "months", "days_viol", "open_left", "per_unit", "three", "random"];
-    const SHORT = { days: "신고가 있었던 날 많은 순", volume: "신고 건수 많은 순", months: "신고가 있었던 달 많은 순", days_viol: "위반 건물 먼저 + 신고일 순",
-      open_left: "HPD 열어 둔 건물 먼저 + 신고일 순", per_unit: "세대 대비 신고일 순", three: "평가서의 세 조건", random: "무작위 (200번 평균)" };
+    const best = at("days", PROP_N), vol = at("volume", PROP_N), rnd = at("random", PROP_N);
+    const order = ["days", "volume", "months", "days_viol", "per_unit", "three", "random"];
+    const SHORT = { days: "신고가 있었던 날 많은 순", volume: "신고 건수 많은 순", months: "신고가 있었던 달 많은 순", days_viol: "위반 필지 먼저 + 신고일 순",
+      per_unit: "세대 대비 신고일 순", three: "평가서의 세 조건", random: "무작위 (200번 평균)" };
     const items = order.map(k => at(k, PROP_N)).filter(Boolean).map(r => ({ label: SHORT[r.rule] || r.label, value: r.share_days * 100,
       valueText: `${pc(r.share_days)}${r.buildings < PROP_N ? ` (${fmtN(r.buildings)}곳)` : ""}`, color: r.rule === "days" ? "var(--s1)" : r.rule === "random" ? GRAY : "#9db9e0", hl: r.rule === "days",
-      tip: `<b>${esc(r.label)}</b><br>${fmtN(r.buildings)}곳 · 올해 난방 신고일 ${pc(r.share_days)} · 신고 건수 ${pc(r.share_req)} · HPD 위반 ${pc(r.share_viol)}<br>목록 중 올해 10일+ 신고 ${pc(r.hit10)}` }));
-    const nSel = `<label class="tgl">점검할 건물 수 <select id="prop-n">${[500, 1000, 2000].map(n => `<option value="${n}"${n === PROP_N ? " selected" : ""}>${fmtN(n)}곳</option>`).join("")}</select></label>`;
-    const tbl = table(["목록 규칙 (지난해 자료로 만듦)", "건물", "올해 난방 신고일", "신고 건수", "HPD 위반", "올해 10일+ 신고"], order.map(k => at(k, PROP_N)).filter(Boolean).map(r => ({ cls: r.rule === "days" ? "hlrow" : r.rule === "random" ? "small" : "",
+      tip: `<b>${esc(r.label)}</b><br>${fmtN(r.buildings)}곳 · 시즌 난방 신고일 ${pc(r.share_days)} · 신고 건수 ${pc(r.share_req)} · HPD 위반 ${pc(r.share_viol)}<br>목록 중 시즌에 10일+ 신고 ${pc(r.hit10)}` }));
+    const nSel = `<label class="tgl">점검할 필지 수 <select id="prop-n">${[500, 1000, 2000].map(n => `<option value="${n}"${n === PROP_N ? " selected" : ""}>${fmtN(n)}곳</option>`).join("")}</select></label>`;
+    const tbl = table(["목록 규칙 (시즌 전 자료로 만듦)", "필지", "시즌 난방 신고일", "신고 건수", "HPD 위반", "시즌에 10일+ 신고"], order.map(k => at(k, PROP_N)).filter(Boolean).map(r => ({ cls: r.rule === "days" ? "hlrow" : r.rule === "random" ? "small" : "",
       cells: [esc(r.label), fmtN(r.buildings), `<b>${pc(r.share_days)}</b>`, pc(r.share_req), pc(r.share_viol), pc(r.hit10)] })), { num: [1, 2, 3, 4, 5] });
-    const BKO2 = r => BKO[r.borough] || r.borough;
-    return card({ id: "home-prop", cls: "proposal", q: "제안: 지난해 신고 기록으로 난방 선제 점검 목록 만들기",
-      what: `<span class="fixtag">두 해 자료로 검증 · 기준 연도와 무관</span> 겨울이 오기 전에, 지난해 난방·온수 신고가 <b>여러 날 반복된 건물</b>부터 점검하자는 제안입니다. 2024-25년 자료로만 목록을 만들고, 2025-26년 자료로 얼마나 맞았는지 확인했습니다.`,
-      meta: meta("%", "지난해 목록 → 올해 결과 (무작위 목록과 비교)", `후보: 지난해 난방 신고가 있었던 건물 ${fmtN(PD.candidates)}곳 · 대상 사용자: HPD 난방 점검팀, 세입자 단체`),
+    const rr = PD.rough_range_1000 || {}, rrTxt = k => rr[k] ? `${(rr[k][0] * 100).toFixed(1)}~${(rr[k][1] * 100).toFixed(1)}%` : "-";
+    const BKO2 = r => BKO[r.borough] || r.borough, newShare = 1 - PD.ceiling.days;
+    return card({ id: "home-prop", cls: "proposal", q: "제안: 지난 신고 기록으로 난방 시즌 전 선제 점검 목록 만들기",
+      what: `<span class="fixtag">두 해 자료로 검증 · 기준 연도와 무관</span> 난방 시즌(10월~5월)이 시작되기 전에, 직전 1년 동안 난방·온수 신고가 <b>여러 날 반복된 필지(건물 번호 BBL)</b>부터 점검하자는 제안입니다. 시즌 전날(2025-09-30)까지의 자료로만 목록을 만들고, 2025-26 난방 시즌 자료로 얼마나 맞았는지 확인했습니다.`,
+      meta: meta("%", "시즌 전 목록 → 그 시즌 결과 (무작위 목록과 비교)", `후보: 2024-11-01 ~ 2025-09-30에 난방 신고가 있었던 필지 ${fmtN(PD.candidates)}곳 · 대상 사용자: HPD 난방 점검팀, 세입자 단체`),
       body: `<div class="kpis">
-        <div class="kpi"><div class="lab">문제</div><div class="val">상위 1%</div><div class="sub">난방 신고가 있었던 건물 중 상위 1%가 신고의 약 24%를 차지하고, 같은 건물이 해마다 다시 나옵니다</div></div>
-        <div class="kpi"><div class="lab">지난해 목록 ${fmtN(PROP_N)}곳 → 올해</div><div class="val">${pc(best.share_days)}</div><div class="sub">올해 난방 신고일 중 목록 건물의 비중 · 무작위 ${pc(rnd.share_days)}의 약 ${Math.round(best.share_days / rnd.share_days)}배 · HPD 위반의 ${pc(best.share_viol)}</div></div>
-        <div class="kpi"><div class="lab">다시 반복된 건물</div><div class="val">${pc(best.hit10)}</div><div class="sub">목록 건물 중 올해도 10일 이상 신고된 비율 · 약 ${(best.units / 10000).toFixed(1)}만 세대</div></div></div>` +
-        nSel + `<h4 class="minih">목록을 만드는 방법에 따라 올해 난방 신고일을 얼마나 미리 짚었나</h4>` +
-        hbars(items, { w: wOf("home-proposal") - 40, labelW: 250, valW: 120, aria: "목록 규칙별 적중률" }) +
-        details("규칙별 자세한 값", tbl + `<p class="note">지난해 신고가 있었던 건물 전체가 올해 난방 신고일의 ${pc(PD.ceiling.days)}를 차지했습니다(어떤 목록도 이보다 높을 수 없음). 평가서의 세 조건(10일+ 반복, 세대 대비 상위 10%, 위반)은 해당 건물이 ${fmtN(PD.three_all.buildings)}곳이고 ${pc(PD.three_all.share_days)}였습니다. 같은 수를 신고일 순으로 고르면 ${pc(PD.days_same_size.share_days)}입니다.</p>`) +
-        details("1,000곳 목록의 모습 (주소는 싣지 않음)", table(["자치구", "건물", "세대"], PD.by_borough.map(r => [esc(BKO2(r)), fmtN(r.buildings), fmtN(r.units)]), { num: [1, 2] })),
-      read: `${T.f}「신고가 있었던 날이 많은 순」이 가장 잘 맞았고, 평가서가 권장한 세 조건 목록은 덜 맞았습니다. ${T.m}난방 문제는 보일러·배관처럼 건물에 붙은 원인이 많아 해마다 같은 건물에서 반복되는 것으로 보입니다(원인은 확인하지 않음). ${T.w}올해 신고일의 약 17%는 지난해 신고가 없던 건물에서 나와 목록으로 못 잡습니다. 덜 신고하는 건물·주민, 311에 거의 없는 공공임대주택(NYCHA)은 빠집니다. 선제 점검의 효과 자체는 검증하지 않았습니다. 건물주·기관 평가가 아닙니다.`,
-      more: `방법: 목록은 2024-11 ~ 2025-10 자료만, 평가는 2025-11 ~ 2026-10. 주 지표 = 올해 난방 신고가 있었던 건물·날짜 중 목록 건물의 비중(같은 날 여러 건은 1). HPD 위반 = 점검일 2025-11-01 ~ 2026-11-10의 난방·온수 위반(신고 없던 건물 포함). 무작위 = 같은 수를 200번 뽑은 평균. 한 방향·한 번의 검증입니다. 자세한 내용: <a href="../reports/heat_priority_proposal.md" target="_blank">제안 보고서</a>` });
+        <div class="kpi"><div class="lab">문제</div><div class="val">상위 1%</div><div class="sub">난방 신고가 있었던 필지 중 상위 1%가 신고의 약 24%를 차지하고, 같은 곳이 해마다 다시 나옵니다</div></div>
+        <div class="kpi"><div class="lab">시즌 전 목록 ${fmtN(PROP_N)}곳 → 2025-26 시즌</div><div class="val">${pc(best.share_days)}</div><div class="sub">시즌 난방 신고일 중 목록 필지의 비중 · 무작위 ${pc(rnd.share_days)}의 약 ${Math.round(best.share_days / rnd.share_days)}배. <b>문제가 줄어든 비율이 아닙니다</b></div></div>
+        <div class="kpi"><div class="lab">시즌에도 반복된 필지</div><div class="val">${pc(best.hit10)}</div><div class="sub">목록 필지 중 그 시즌에 10일 이상 신고된 비율 · 약 ${(best.units / 10000).toFixed(1)}만 세대</div></div></div>` +
+        nSel + `<h4 class="minih">목록을 만드는 방법에 따라 그 시즌 난방 신고일을 얼마나 미리 짚었나</h4>` +
+        hbars(items, { w: wOf("home-proposal") - 40, labelW: 250, valW: 120, aria: "목록 규칙별 포괄 비율" }) +
+        details("규칙별 자세한 값", tbl + `<p class="note">분모: 시즌 중 BBL이 있는 난방 신고의 필지·날짜 ${fmtN(PD.totals.days)}개(BBL 없는 신고 ${fmtN(PD.no_bbl_eval_requests)}건 제외). 직전 1년 신고가 있었던 필지 전체가 시즌 신고일의 ${pc(PD.ceiling.days)}를 차지했습니다(어떤 목록도 이보다 높을 수 없음). 평가서의 세 조건은 해당 필지가 ${fmtN(PD.three_all.buildings)}곳이고 ${pc(PD.three_all.share_days)}였습니다. 같은 수를 신고일 순으로 고르면 ${pc(PD.days_same_size.share_days)}입니다. 「HPD가 열어 둔 신고」 규칙은 그 문구가 목록 작성 시점에 보였는지 확인할 수 없어 비교에서 뺐습니다.</p>`) +
+        details("신고일 순 필지 1,000곳 목록의 모습 (주소는 싣지 않음)", table(["자치구", "필지", "세대"], PD.by_borough.map(r => [esc(BKO2(r)), fmtN(r.buildings), fmtN(r.units)]), { num: [1, 2] }) +
+          `<p class="note">필지(BBL)는 건물 하나와 같지 않습니다. 이 목록에는 200세대 이상 필지 ${fmtN(PD.lots_200plus_units_in_list)}곳(여러 동일 수 있음)과 콘도 대표 필지로 보이는 ${fmtN(PD.condo_billing_lots_in_list)}곳이 있습니다. 실제 점검 건수·비용은 추정하지 않았습니다.</p>`),
+      read: `${T.f}직전 1년의 신고 이력으로 만든 규칙(신고일 순 ${pc(best.share_days)}, 신고 건수 순 ${pc(vol.share_days)})은 비슷한 수준으로 무작위의 약 ${Math.round(best.share_days / rnd.share_days)}배였습니다. 두 규칙의 대략적인 범위(${rrTxt("days")}, ${rrTxt("volume")})가 겹쳐 어느 쪽이 낫다고 말할 수 없고, 한 시즌만 비교했습니다. 신고일 순은 같은 날 여러 건을 하루로 세어 몰아치기 접수의 영향을 줄이려고 고른 방식입니다. 평가서가 권장한 세 조건 목록은 이보다 낮았습니다. ${T.m}난방 문제는 보일러·배관처럼 건물에 붙은 원인이 많아 같은 곳에서 반복되는 것으로 보입니다(원인은 확인하지 않음). ${T.w}이 비율은 목록에 들어간 비중이지 문제 감소 효과가 아니며, 선제 점검의 효과는 검증하지 않았습니다. 시즌 신고일의 약 ${Math.round(newShare * 100)}%는 직전 1년 신고가 없던 필지에서 나와 목록으로 못 잡고, 덜 신고하는 곳과 311에 거의 없는 공공임대주택(NYCHA)은 빠집니다. 건물주·기관 평가가 아닙니다.`,
+      more: `시간 기준: 목록 작성일 2025-09-30(난방 시즌 전날). 선정 자료 = 2024-11-01 ~ 2025-09-30 신고와 그 기간 점검일의 HPD 위반. 평가 = 2025-10-01 ~ 2026-05-31 난방 시즌(10월은 지난해 파일, 11~5월은 올해 파일). 주 지표 = 시즌 중 난방 신고가 있었던 필지·날짜 중 목록 필지의 비중(같은 날 여러 건은 1). HPD 위반 = 같은 시즌 점검일의 난방·온수 위반(신고 없던 필지 포함). 무작위 = 같은 수를 200번 뽑은 평균. 대략적인 범위 = 시즌 필지를 다시 뽑아(300번) 목록은 그대로 두고 계산한 2.5~97.5% 구간으로, 다른 해의 결과를 보장하지 않습니다. 세대 수는 현재 PLUTO 값. 자세한 내용: <a href="../reports/heat_priority_proposal.md" target="_blank">제안 보고서</a>` });
   }
   function renderHome() {
     if ($("home-proposal")) $("home-proposal").innerHTML = proposalCard();
@@ -447,7 +449,7 @@
       unit = `건 / 주민 1,000명${st.m >= 0 ? " (한 달)" : per === 2 ? " (1년 평균)" : " (1년)"}`; what = "현재 조건(유형·기관·기간·집중 주소)의 신고를 2020년 인구로 나눈 값입니다. 주민이 아닌 사람(통근자·관광객)의 신고도 들어 있어 맨해튼 중심가는 높게 나옵니다."; }
     else if (MAP_M === "share") { const n = byCb(cbRows(cond)), d = byCb(cbRows(Object.assign({}, cond, { p: -1 }))); Object.keys(CEN).forEach(k => { val[k] = d[k] ? (n[k] || 0) / d[k] * 100 : null; });
       unit = `% (그 지역 신고 중 ${esc(pShort(st.p))})`; what = "각 세부 지역의 신고 중 고른 유형의 비중입니다(분모 = 그 지역의 모든 유형 신고)."; }
-    else if (MAP_M === "heat") { BDc.forEach(r => { val[r.cb] = r.days_per_1000; }); unit = "난방 신고일 / 주거 세대 1,000곳"; what = "건물마다 난방 신고가 있었던 날을 더해 PLUTO 주거 세대 수로 나눈 값입니다(3번 화면 건물 카드와 같은 값)."; }
+    else if (MAP_M === "heat") { BDc.forEach(r => { val[r.cb] = r.days_per_1000; }); unit = "난방 신고일 / 주거 세대 1,000곳 (1년)"; what = "필지마다 난방 신고가 있었던 날을 더해 PLUTO 주거 세대 수로 나눈 1년 값입니다(3번 화면 건물 카드와 같은 값). 위에서 고른 유형·기관·기간·집중 주소 조건은 이 값에 적용되지 않습니다."; }
     else { Object.keys(CEN).forEach(k => { val[k] = CEN[k].renter_pct; }); unit = "% (거주 가구 중 임차 가구)"; what = "2020년 인구조사(전수)의 거주 가구 중 임차 가구 비율입니다. 311 자료가 아니며, 신고하는 사람의 주거 형태를 뜻하지도 않습니다."; }
     const vs = Object.values(val).filter(v => v != null).sort((a, b) => a - b);
     const qs = [0.2, 0.4, 0.6, 0.8].map(q => vs[Math.floor(q * (vs.length - 1))]);
@@ -484,7 +486,7 @@
     const sel = `<label class="tgl">지도에 칠할 값 <select id="map-m">${OPTS.map(([k, t]) => `<option value="${k}"${k === MAP_M ? " selected" : ""}${k === "share" && st.p < 0 ? " disabled" : ""}>${t}${k === "share" && st.p < 0 ? " (위에서 유형을 고르면)" : ""}</option>`).join("")}</select></label>`;
     return card({ id: "where-map", q: "지도로 보면 어디가 높은가요? (세부 지역 59곳)",
       what: `${esc(what)} 지역을 누르면 그 세부 지역을 고릅니다.`,
-      meta: meta(esc(unit), "다섯 구간(같은 수의 지역씩)", `${MAP_M === "renter" ? "2020년 인구조사" : `${YR.label} · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}${st.x ? " · 집중 주소 제외" : ""}`} · 311 신고의 세부 지역 값 기준`),
+      meta: meta(esc(unit), "다섯 구간(같은 수의 지역씩)", `${MAP_M === "renter" ? "2020년 인구조사 (위 조건 미적용)" : MAP_M === "heat" ? `${YR.label} 1년 고정값 · 위 유형·기관·기간·집중 주소 조건 미적용 · PLUTO 커뮤니티 디스트릭트 기준` : `${YR.label} · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}${st.x ? " · 집중 주소 제외" : ""} · 311 신고의 세부 지역 값 기준`}`),
       body: sel + legendHtml + `<svg class="chart cdmap" viewBox="0 0 ${vw} ${vh}" role="img" aria-label="세부 지역 지도">${svg}</svg>` +
         details("59곳 값 모두 보기 (높은 순)", table(["세부 지역", "값", "임차 가구", "2020 인구"], ranked.map(k => ({ cls: st.cd >= 0 && CBS[st.cd] === k ? "hlrow" : "", attr: ` data-setcd="${CBS.indexOf(k)}"`, cells: [esc(lab(k)), fmtV(val[k]), `${CEN[k] ? CEN[k].renter_pct : "-"}%`, CEN[k] ? fmtN(CEN[k].pop) : "-"] })), { num: [1, 2, 3] })) + pair,
       read: ranked.length ? `${T.f}가장 높은 곳은 ${ranked.slice(0, 3).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}, 가장 낮은 곳은 ${ranked.slice(-2).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}입니다. ${T.w}색은 순위에 따른 구간이라 차이의 크기를 그대로 나타내지 않습니다. 지역 평가나 순위 매김이 아닙니다.` : "",
