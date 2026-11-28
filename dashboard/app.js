@@ -309,7 +309,38 @@
   }
 
   // ======================= HOME =======================
+  // ---------- proposal: heat inspection priority list, checked last year -> this year (reports/heat_priority_proposal.md) ----------
+  let PROP_N = 1000;
+  function proposalCard() {
+    const PD = window.PROPOSAL_DATA; if (!PD) return "";
+    const pc = v => `${(v * 100).toFixed(1)}%`, at = (rule, n) => PD.results.find(r => r.rule === rule && r.N === n);
+    const best = at("days", PROP_N), rnd = at("random", PROP_N);
+    const order = ["days", "volume", "months", "days_viol", "open_left", "per_unit", "three", "random"];
+    const SHORT = { days: "신고가 있었던 날 많은 순", volume: "신고 건수 많은 순", months: "신고가 있었던 달 많은 순", days_viol: "위반 건물 먼저 + 신고일 순",
+      open_left: "HPD 열어 둔 건물 먼저 + 신고일 순", per_unit: "세대 대비 신고일 순", three: "평가서의 세 조건", random: "무작위 (200번 평균)" };
+    const items = order.map(k => at(k, PROP_N)).filter(Boolean).map(r => ({ label: SHORT[r.rule] || r.label, value: r.share_days * 100,
+      valueText: `${pc(r.share_days)}${r.buildings < PROP_N ? ` (${fmtN(r.buildings)}곳)` : ""}`, color: r.rule === "days" ? "var(--s1)" : r.rule === "random" ? GRAY : "#9db9e0", hl: r.rule === "days",
+      tip: `<b>${esc(r.label)}</b><br>${fmtN(r.buildings)}곳 · 올해 난방 신고일 ${pc(r.share_days)} · 신고 건수 ${pc(r.share_req)} · HPD 위반 ${pc(r.share_viol)}<br>목록 중 올해 10일+ 신고 ${pc(r.hit10)}` }));
+    const nSel = `<label class="tgl">점검할 건물 수 <select id="prop-n">${[500, 1000, 2000].map(n => `<option value="${n}"${n === PROP_N ? " selected" : ""}>${fmtN(n)}곳</option>`).join("")}</select></label>`;
+    const tbl = table(["목록 규칙 (지난해 자료로 만듦)", "건물", "올해 난방 신고일", "신고 건수", "HPD 위반", "올해 10일+ 신고"], order.map(k => at(k, PROP_N)).filter(Boolean).map(r => ({ cls: r.rule === "days" ? "hlrow" : r.rule === "random" ? "small" : "",
+      cells: [esc(r.label), fmtN(r.buildings), `<b>${pc(r.share_days)}</b>`, pc(r.share_req), pc(r.share_viol), pc(r.hit10)] })), { num: [1, 2, 3, 4, 5] });
+    const BKO2 = r => BKO[r.borough] || r.borough;
+    return card({ id: "home-prop", cls: "proposal", q: "제안: 지난해 신고 기록으로 난방 선제 점검 목록 만들기",
+      what: `<span class="fixtag">두 해 자료로 검증 · 기준 연도와 무관</span> 겨울이 오기 전에, 지난해 난방·온수 신고가 <b>여러 날 반복된 건물</b>부터 점검하자는 제안입니다. 2024-25년 자료로만 목록을 만들고, 2025-26년 자료로 얼마나 맞았는지 확인했습니다.`,
+      meta: meta("%", "지난해 목록 → 올해 결과 (무작위 목록과 비교)", `후보: 지난해 난방 신고가 있었던 건물 ${fmtN(PD.candidates)}곳 · 대상 사용자: HPD 난방 점검팀, 세입자 단체`),
+      body: `<div class="kpis">
+        <div class="kpi"><div class="lab">문제</div><div class="val">상위 1%</div><div class="sub">난방 신고가 있었던 건물 중 상위 1%가 신고의 약 24%를 차지하고, 같은 건물이 해마다 다시 나옵니다</div></div>
+        <div class="kpi"><div class="lab">지난해 목록 ${fmtN(PROP_N)}곳 → 올해</div><div class="val">${pc(best.share_days)}</div><div class="sub">올해 난방 신고일 중 목록 건물의 비중 · 무작위 ${pc(rnd.share_days)}의 약 ${Math.round(best.share_days / rnd.share_days)}배 · HPD 위반의 ${pc(best.share_viol)}</div></div>
+        <div class="kpi"><div class="lab">다시 반복된 건물</div><div class="val">${pc(best.hit10)}</div><div class="sub">목록 건물 중 올해도 10일 이상 신고된 비율 · 약 ${(best.units / 10000).toFixed(1)}만 세대</div></div></div>` +
+        nSel + `<h4 class="minih">목록을 만드는 방법에 따라 올해 난방 신고일을 얼마나 미리 짚었나</h4>` +
+        hbars(items, { w: wOf("home-proposal") - 40, labelW: 250, valW: 120, aria: "목록 규칙별 적중률" }) +
+        details("규칙별 자세한 값", tbl + `<p class="note">지난해 신고가 있었던 건물 전체가 올해 난방 신고일의 ${pc(PD.ceiling.days)}를 차지했습니다(어떤 목록도 이보다 높을 수 없음). 평가서의 세 조건(10일+ 반복, 세대 대비 상위 10%, 위반)은 해당 건물이 ${fmtN(PD.three_all.buildings)}곳이고 ${pc(PD.three_all.share_days)}였습니다. 같은 수를 신고일 순으로 고르면 ${pc(PD.days_same_size.share_days)}입니다.</p>`) +
+        details("1,000곳 목록의 모습 (주소는 싣지 않음)", table(["자치구", "건물", "세대"], PD.by_borough.map(r => [esc(BKO2(r)), fmtN(r.buildings), fmtN(r.units)]), { num: [1, 2] })),
+      read: `${T.f}「신고가 있었던 날이 많은 순」이 가장 잘 맞았고, 평가서가 권장한 세 조건 목록은 덜 맞았습니다. ${T.m}난방 문제는 보일러·배관처럼 건물에 붙은 원인이 많아 해마다 같은 건물에서 반복되는 것으로 보입니다(원인은 확인하지 않음). ${T.w}올해 신고일의 약 17%는 지난해 신고가 없던 건물에서 나와 목록으로 못 잡습니다. 덜 신고하는 건물·주민, 311에 거의 없는 공공임대주택(NYCHA)은 빠집니다. 선제 점검의 효과 자체는 검증하지 않았습니다. 건물주·기관 평가가 아닙니다.`,
+      more: `방법: 목록은 2024-11 ~ 2025-10 자료만, 평가는 2025-11 ~ 2026-10. 주 지표 = 올해 난방 신고가 있었던 건물·날짜 중 목록 건물의 비중(같은 날 여러 건은 1). HPD 위반 = 점검일 2025-11-01 ~ 2026-11-10의 난방·온수 위반(신고 없던 건물 포함). 무작위 = 같은 수를 200번 뽑은 평균. 한 방향·한 번의 검증입니다. 자세한 내용: <a href="../reports/heat_priority_proposal.md" target="_blank">제안 보고서</a>` });
+  }
   function renderHome() {
+    if ($("home-proposal")) $("home-proposal").innerHTML = proposalCard();
     const o = D.ref.eda_overview, r = D.ref.eda_resolution;
     const nCD = CBC.reduce((t, x) => t + x[6], 0);
     const rep = X.repeat ? X.repeat.q1 : null;
@@ -1462,6 +1493,7 @@
   document.addEventListener("change", e => { if (e.target && e.target.id === "pl-c") { PL_C = e.target.value; render(); } });
   document.addEventListener("click", e => { const tr = e.target.closest && e.target.closest("tr[data-plc]"); if (tr) { PL_C = tr.dataset.plc; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "wx-g") { WX_G = e.target.value; render(); } });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "prop-n") { PROP_N = +e.target.value; render(); } });
   document.addEventListener("change", e => { if (e.target && e.target.id === "ws-merge") { MERGE_WS = e.target.checked; render(); } });
   window.addEventListener("hashchange", () => { const v0 = st.v; fromHash(); if (st.v !== v0) show(st.v); else render(); });
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });

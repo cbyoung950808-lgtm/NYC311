@@ -328,3 +328,5 @@ tr.hlrow td { background: color-mix(in srgb, var(--s1) 12%, transparent); font-w
 .wxc.down { background: #dfeafb; color: #1d5aa8; }
 .wxc.flat { background: #efeee9; color: var(--ink2); font-weight: 500; }
 .wxc.na { color: var(--muted); font-weight: 400; min-width: 0; }
+.card.proposal { border: 2px solid var(--accent); box-shadow: 0 1px 0 rgba(42,120,214,.08); }
+.card.proposal .cq { font-size: 19px; }
