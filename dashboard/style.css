@@ -320,3 +320,11 @@ tr.hlrow td { background: color-mix(in srgb, var(--s1) 12%, transparent); font-w
 @media (max-width: 640px) { .yearsel { width: 100%; margin: 4px 0; } .yearsel select { flex: 1; } }
 .yearhint { font-size: 11.5px; font-weight: 500; color: var(--muted); margin-left: 4px; }
 @media (max-width: 640px) { .yearhint { display: none; } }
+
+/* ---------- review follow-up (2026-11-28) ---------- */
+.callout { background: var(--accent-bg); border-left: 3px solid var(--accent); border-radius: 8px; padding: 9px 14px; font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
+.wxc { display: inline-block; min-width: 42px; text-align: center; border-radius: 5px; padding: 1px 6px; font-weight: 700; font-size: 13px; }
+.wxc.up { background: #fbe1e0; color: #a12b2a; }
+.wxc.down { background: #dfeafb; color: #1d5aa8; }
+.wxc.flat { background: #efeee9; color: var(--ink2); font-weight: 500; }
+.wxc.na { color: var(--muted); font-weight: 400; min-width: 0; }
