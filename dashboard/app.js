@@ -8,7 +8,10 @@
   // year shown (year.js swaps the data globals before this file runs). YR.* = the dates of the shown year.
   const YR = window.YEAR || { key: "cur", y: "2025", label: "2025-11 ~ 2026-10", short: "올해", long: "올해 (2025-11 ~ 2026-10)", start: "2025-11-01", last_day: "2026-10-31",
     first_full: "2025-11-02", last_full: "2026-10-30", obs: "2026-11-11", elig30: "2026-10-12", file_date: "2026-11-12", hpd: ["2025-11-01", "2026-11-10"], partial_edges: true, hasPrev: false };
-  const PREV = YR.key === "prev";
+  const PREV = YR.key === "prev", BOTH = YR.key === "both";
+  if (!YR.isFull) YR.isFull = d => d >= YR.first_full && d <= YR.last_full;
+  if (!YR.span) YR.span = "1년";
+  const FULLTXT = (YR.full_ranges || [[YR.first_full, YR.last_full]]).map(r => r.join(" ~ ")).join(", ");
   const KO = window.PROBLEM_KO || {};
   const M = D.dims.months, B = D.dims.boroughs, A = D.dims.agencies, P = D.dims.problems;
   const C = D.counts.rows;                // [m,b,a,p,focus,full_day,rc,no_addr,n]  rc: 0 resolved,1 open,2 closed_excluded
@@ -71,7 +74,7 @@
     const q = new URLSearchParams();
     if (st.b >= 0) q.set("b", B[st.b]); if (st.cd >= 0) q.set("cd", CBS[st.cd]); if (st.a >= 0) q.set("a", A[st.a]);
     if (st.p >= 0) q.set("p", P[st.p]); if (st.m >= 0) q.set("m", M[st.m]); if (st.x) q.set("x", "1");
-    if (PREV) q.set("y", "2024");
+    if (YR.key !== "cur") q.set("y", YR.y);
     const s = q.toString(); return "#" + st.v + (s ? "?" + s : "");
   }
   const EMBED = !!window.STREAMLIT_EMBED;   // running inside the Streamlit wrapper (srcdoc iframe)
@@ -93,7 +96,8 @@
     const h = decodeURIComponent(raw); const [v, qs] = h.split("?");
     const q = new URLSearchParams(qs || "");
     const ix = (arr, k) => q.has(k) ? arr.indexOf(q.get(k)) : -1;
-    if (location.hash && (q.get("y") === "2024") !== PREV) { switchYear(PREV ? "cur" : "prev", h); return; }
+    const yk = q.get("y") === "2024" ? "prev" : q.get("y") === "both" ? "both" : "cur";
+    if (location.hash && yk !== YR.key) { switchYear(yk, h); return; }
     Object.assign(st, { v: VIEWS.includes(v) ? v : "home", b: ix(B, "b"), cd: ix(CBS, "cd"), a: ix(A, "a"), p: ix(P, "p"), m: ix(M, "m"), x: q.get("x") === "1" ? 1 : 0 });
     if (st.cd >= 0) st.b = CBB[st.cd];
   }
@@ -103,7 +107,7 @@
     if (window.YEAR && window.YEAR.remember) window.YEAR.remember(key);
     const raw = stateStr != null ? stateStr : toHash().slice(1);
     const [v, qs] = raw.split("?"); const q = new URLSearchParams(qs || "");
-    if (key === "prev") q.set("y", "2024"); else q.delete("y");
+    if (key === "prev") q.set("y", "2024"); else if (key === "both") q.set("y", "both"); else q.delete("y");
     const s = q.toString(), h = "#" + (v || "home") + (s ? "?" + s : "");
     if (EMBED) {
       try { const l = window.parent.location; window.parent.history.replaceState(null, "", l.origin + l.pathname + "?s=" + encodeURIComponent(h.slice(1))); window.parent.location.reload(); return; }
@@ -261,7 +265,7 @@
   const goBtn = (v, txt) => `<button class="gobtn" data-goto="${v}">${txt} →</button>`;
   const T = { f: '<span class="tag fact">확인된 사실</span>', m: '<span class="tag maybe">가능한 설명</span>', c: '<span class="tag check">추가 확인 필요</span>', w: '<span class="tag warn">주의</span>' };
   // interpretation sentences written from this year's results: shown as is for this year, replaced for the previous year
-  const CURTXT = s => PREV ? `${T.c}이 카드의 해석 문장은 올해(2025-11 ~ 2026-10) 결과로 쓴 것이라 지난해 화면에서는 보여 주지 않습니다. 지난해 값은 위 표·그래프에서 직접 확인하세요. 두 해의 차이는 따로 검증하지 않았습니다.` : s;
+  const CURTXT = s => PREV || BOTH ? `${T.c}이 카드의 해석 문장은 올해(2025-11 ~ 2026-10) 결과로 쓴 것이라 ${YR.short} 화면에서는 보여 주지 않습니다. ${YR.short} 값은 위 표·그래프에서 직접 확인하세요. 두 해의 차이는 따로 검증하지 않았습니다.` : s;
   const help = (key, txt = "?") => `<button class="hbtn" data-help="${key}" title="용어 설명 보기" aria-label="용어 설명">${txt}</button>`;
 
   // ---------- filter bar ----------
@@ -272,7 +276,7 @@
     $("f-cd").innerHTML = opt(-1, st.b >= 0 ? `${bLabel(st.b)} 전체` : "자치구를 먼저 고르세요") + cbs.map(i => opt(i, `${cbLabel(i)} (${cbCode(i)})`)).join("");
     $("f-cd").disabled = st.b < 0;
     $("f-a").innerHTML = opt(-1, "전체 기관") + A.map((a, i) => opt(i, aName(i))).join("");
-    $("f-m").innerHTML = opt(-1, "전체 12개월") + M.map((m, i) => opt(i, mLabel(i) + (i === 0 || i === M.length - 1 ? " (일부만 수집)" : ""))).join("");
+    $("f-m").innerHTML = opt(-1, `전체 ${M.length}개월`) + M.map((m, i) => opt(i, mLabel(i) + (i === 0 || i === M.length - 1 || (BOTH && M[i] === "2025-11") ? (PREV ? " (첫날·끝날 제외)" : " (일부만 수집)") : ""))).join("");
     const allowed = new Map();
     C.forEach(r => { if (st.a < 0 || r[2] === st.a) allowed.set(r[3], (allowed.get(r[3]) || 0) + r[8]); });
     if (st.p >= 0 && !allowed.has(st.p)) st.p = -1;
@@ -308,16 +312,16 @@
   function renderHome() {
     const o = D.ref.eda_overview, r = D.ref.eda_resolution;
     const nCD = CBC.reduce((t, x) => t + x[6], 0);
-    const rep = X.repeat.q1;
+    const rep = X.repeat ? X.repeat.q1 : null;
     const fNR = (() => { const rr = C.filter(x => x[3] === P.indexOf("Noise - Residential") && x[1] === FOCUS_B); return [sum(rr), sum(rr.filter(x => x[4] === 0))]; })();
-    const L1 = X.playbook.L1.filter(x => x.metric === "median_h");
-    const pbOK = X.playbook.summary && L1.length === 5;
+    const L1 = X.playbook ? X.playbook.L1.filter(x => x.metric === "median_h") : [];
+    const pbOK = X.playbook && X.playbook.summary && L1.length === 5;
     const RRo = window.REREPORT_DATA ? window.REREPORT_DATA.overall.find(x => x.unit === "request" && x.scope === "all") : null;
     const WXs = window.WEATHER_DATA ? window.WEATHER_DATA.compare.find(x => x.group === "snow_ice" && x.event === "snow") : null;
     const BDb = window.BUILDING_DATA ? Object.fromEntries(window.BUILDING_DATA.borough.map(x => [x.borough, x.report_days_per_1000_units])) : null;
     $("home-data").innerHTML = `
       <div class="kpis">
-        <div class="kpi"><div class="lab">기간</div><div class="val">1년</div><div class="sub">접수 ${esc(o.created_min.slice(0, 16))} ~ ${esc(o.created_max.slice(0, 16))}. ${YR.partial_edges ? "첫날·마지막 날은 일부 시간만 들어 있음" : `올해와 맞추려고 하루 평균은 ${YR.first_full.slice(5)} ~ ${YR.last_full.slice(5)}만 사용`}</div></div>
+        <div class="kpi"><div class="lab">기간</div><div class="val">${YR.span}</div><div class="sub">접수 ${esc(o.created_min.slice(0, 16))} ~ ${esc(o.created_max.slice(0, 16))}. ${YR.partial_edges ? "첫날·마지막 날은 일부 시간만 들어 있음" : `올해와 맞추려고 하루 평균은 ${YR.first_full.slice(5)} ~ ${YR.last_full.slice(5)}만 사용`}</div></div>
         <div class="kpi"><div class="lab">기본 분석 대상 신고 ${help("base")}</div><div class="val">${fmtN(o.rows_base)}<small>건</small></div><div class="sub">전체 ${fmtN(o.rows_all)}건 중 중복 의심 ${fmtN(o.system_duplicates_excluded)}건 제외</div></div>
         <div class="kpi"><div class="lab">이 숫자는 무엇인가</div><div class="val" style="font-size:20px">신고 기록</div><div class="sub">사건 수·문제의 양·심각도가 아니라 311에 <b>접수된 기록</b>입니다</div></div>
       </div>
@@ -325,7 +329,7 @@
         ["신고 수·비중 (자치구)", "자치구가 있는 신고", fmtN(o.rows_base - sum(C.filter(x => x[1] === UNK)))],
         ["세부 지역(커뮤니티 보드) 구성", "표준 커뮤니티 보드 59곳에 연결된 신고", fmtN(nCD)],
         ["처리 시간 (절반·90%가 종료 기록에 도달한 시간)", "종료 기록이 있고 처리 시간이 0보다 큰 신고 (상태·날짜가 맞는 것)", fmtN(r.resolved_rows)],
-        ["주소 반복 (전체 참고 결과)", "번지가 있는 주소의 신고", fmtN(rep.reports)]], { num: [2] }), "readmore")}`;
+        ["주소 반복 (전체 참고 결과)", "번지가 있는 주소의 신고", rep ? fmtN(rep.reports) : "연도별 (각 해 화면)"]], { num: [2] }), "readmore")}`;
     const F = [
       { v: "where", s: { b: B.indexOf("QUEENS") }, t: "지역마다 많이 들어오는 신고 종류가 다릅니다",
         fact: "퀸스·브루클린은 신고의 19.9%가 불법주차입니다(5개 자치구 전체 15.6%). 브롱크스는 주거 소음 17.3%, 난방·온수 14.3%로 전체(10.5%, 8.9%)보다 높고, 맨해튼은 차고 앞 주차가 0.6%뿐입니다.",
@@ -334,7 +338,7 @@
         fact: `브롱크스 한 주소(655 EAST 230 STREET)에 신고 47,105건이 들어왔습니다. 브롱크스 주거 소음 ${fmtN(fNR[0])}건 중 ${pct(fNR[0] - fNR[1], fNR[0])}가 이 주소이고, 빼면 ${fmtN(fNR[1])}건으로 줄어 자치구 순위가 바뀝니다.`,
         lim: "신고가 많다는 사실만으로 특정 주민의 행동이나 실제 소음 수준을 판단할 수 없습니다." + (window.REVALIDATION_DATA ? ` 이 주소는 지난해(2024-11 ~ 2025-10)에도 1위였고 신고가 ${fmtN(window.REVALIDATION_DATA.focus_A)}건으로 더 많았습니다.` : "") },
       { v: "places", s: {}, t: "신고는 같은 주소에서 여러 번 들어오는 경우가 대부분입니다",
-        fact: `번지가 있는 주소의 신고 중 ${rep.reports_at_ge2_pct.toFixed(1)}%는 1년 동안 2건 이상 신고된 주소에서 나왔습니다. 같은 주소·같은 유형의 반복은 같은 날 하루에 몰리기보다 여러 달에 걸쳐 들어옵니다.`,
+        fact: `번지가 있는 주소의 신고 중 ${rep ? rep.reports_at_ge2_pct.toFixed(1) : "-"}%는 1년 동안 2건 이상 신고된 주소에서 나왔습니다. 같은 주소·같은 유형의 반복은 같은 날 하루에 몰리기보다 여러 달에 걸쳐 들어옵니다.`,
         lim: "다시 신고됐다는 것이 해결 실패나 재발이라는 뜻은 아닙니다. 세대(호실) 정보가 없어 큰 건물의 여러 세대 신고도 같은 주소로 셉니다." + (RRo ? ` 종결 뒤 같은 주소·유형으로 다시 접수된 비율은 7일 ${RRo.rate_7d.toFixed(1)}%, 30일 ${RRo.rate_30d.toFixed(1)}%입니다(4번 화면 「종결 뒤 재접수」).` : "") },
       { v: "when", s: { p: P.indexOf("HEAT/HOT WATER") }, t: "계절과 특정 날짜에 따라 신고가 크게 달라집니다",
         fact: "난방·온수 신고는 겨울(11~2월)에 몰립니다. 하루 신고가 가장 많았던 2026-02-24에는 22,793건이 들어왔고, 그중 눈·얼음이 11,370건입니다." +
@@ -349,12 +353,12 @@
     ].concat(BDb ? [{ v: "places", s: {}, t: "세대 수로 나눠도 브롱크스의 난방 신고가 가장 많습니다",
         fact: `모든 주거 세대 1,000곳당 난방 신고가 있었던 날은 브롱크스 ${Math.round(BDb.BRONX)}일, 브루클린 ${Math.round(BDb.BROOKLYN)}일, 맨해튼 ${Math.round(BDb.MANHATTAN)}일, 퀸스 ${Math.round(BDb.QUEENS)}일입니다. 20~99세대 건물과 1946년 이전 건물에서 많고, 1년에 10일 이상 신고가 반복된 건물(15%)이 난방 신고의 71%를 차지합니다. 지난해에도 세대 대비 상위 5개 세부 지역(브롱크스 7·4·5, 맨해튼 10·12)이 같았습니다.`,
         lim: "세대 수는 현재 시점의 건물 정보(PLUTO)입니다. 신고가 많다고 건물 상태가 나쁘다고 확정할 수 없고, 건물주·기관 평가가 아닙니다." }] : []);
-    if (PREV) {   // the findings were verified on this year's data; the two-year card below is the check for the previous year
+    if (PREV || BOTH) {   // the findings were verified on this year's data; the two-year card below is the check for the previous year
       const fp = sum(C.filter(x => x[4] === 1)), heat = P.indexOf("HEAT/HOT WATER");
       const hm = heat < 0 ? [] : M.map((_, i) => sum(C.filter(x => x[3] === heat && x[0] === i))), hmax = hm.length ? hm.indexOf(Math.max(...hm)) : -1;
-      $("home-findings").innerHTML = `<div class="finding"><h3>지난해 화면에서는 올해의 발견 대신 두 해 비교를 보세요</h3>
-        <p>${T.w}「검증된 주요 발견」 6개는 올해(2025-11 ~ 2026-10) 자료로 확인한 문장이라 지난해 화면에서는 숨겼습니다. 지난해에도 같은지는 아래 「지난해에도 반복되나요?」 카드에 정리했습니다.</p>
-        <p>${T.f}지난해 값 몇 가지: 집중 주소(655 East 230th St) 신고 ${fmtN(fp)}건${hmax >= 0 ? `, 난방·온수 신고가 가장 많은 달 ${mLabel(hmax)}(${fmtN(hm[hmax])}건)` : ""}. 각 화면의 숫자는 모두 지난해 값입니다.</p></div>`;
+      $("home-findings").innerHTML = `<div class="finding"><h3>${YR.short} 화면에서는 올해의 발견 대신 두 해 비교를 보세요</h3>
+        <p>${T.w}「검증된 주요 발견」 6개는 올해(2025-11 ~ 2026-10) 자료로 확인한 문장이라 ${YR.short} 화면에서는 숨겼습니다. 지난해에도 같은지는 아래 「지난해에도 반복되나요?」 카드에 정리했습니다.</p>
+        <p>${T.f}${YR.short} 값 몇 가지: 집중 주소(655 East 230th St) 신고 ${fmtN(fp)}건${hmax >= 0 ? `, 난방·온수 신고가 가장 많은 달 ${mLabel(hmax)}(${fmtN(hm[hmax])}건)` : ""}. 각 화면의 숫자는 모두 ${YR.short} 값입니다.</p></div>`;
       return renderTwoYear();
     }
     $("home-findings").innerHTML = F.map((f, i) => `<div class="finding"><h3><span class="fnum">${i + 1}</span>${f.t}</h3>
@@ -396,7 +400,7 @@
     const cmp = R.lvl === "cd" ? typeCounts("cd", -1) : R.lvl === "b" ? typeCounts("b", -1) : null;
     const tot = m => [...m.values()].reduce((a, b) => a + b, 0);
     const N = tot(reg), NC = cmp ? tot(cmp) : 0;
-    const recNote = [st.a >= 0 ? `기관 ${aName(st.a)}의 신고만` : "", st.m >= 0 ? mLabel(st.m) : "12개월", st.x ? "집중 주소 제외" : ""].filter(Boolean).join(" · ");
+    const recNote = [st.a >= 0 ? `기관 ${aName(st.a)}의 신고만` : "", st.m >= 0 ? mLabel(st.m) : "전체 기간", st.x ? "집중 주소 제외" : ""].filter(Boolean).join(" · ");
     // chart 1: composition of the selected region vs comparison
     let body1;
     if (!N) body1 = emptyBox(NO_DATA);
@@ -481,8 +485,8 @@
   const keyOf = p => (MERGE_WS && MERGE[p]) ? "M:" + MERGE[p] : p;
   const keyLabel = k => typeof k === "string" && k.startsWith("M:") ? k.slice(2) : pShort(k);
   function monthComposition() {
-    const cnt = new Map(), tot = new Array(12).fill(0);
-    const add = (p, m, n) => { const k = keyOf(p); if (!cnt.has(k)) cnt.set(k, new Array(12).fill(0)); cnt.get(k)[m] += n; tot[m] += n; };
+    const cnt = new Map(), tot = new Array(M.length).fill(0);
+    const add = (p, m, n) => { const k = keyOf(p); if (!cnt.has(k)) cnt.set(k, new Array(M.length).fill(0)); cnt.get(k)[m] += n; tot[m] += n; };
     if (st.cd >= 0) CBC.forEach(r => { if (r[0] === st.cd && (st.a < 0 || r[1] === st.a) && (!st.x || r[4] === 0)) add(r[2], r[3], r[6]); });
     else C.forEach(r => { if ((st.b < 0 || r[1] === st.b) && (st.a < 0 || r[2] === st.a) && (!st.x || r[4] === 0)) add(r[3], r[0], r[8]); });
     return { cnt, tot, N: tot.reduce((a, b) => a + b, 0) };
@@ -534,7 +538,7 @@
     "Sewer": "sewer_flood", "Sewer Maintenance": "sewer_flood", "Damaged Tree": "tree", "Noise - Street/Sidewalk": "noise_street", "Noise - Residential": "noise_res" };
   const WX_COL = { snow: "#9ec5f4", cold: "#c9d3e0", hot: "#f6b98a", heavy_rain: "#a8d5ba", windy: "#e3d3a6" };
   function weatherCard() {
-    const W = window.WEATHER_DATA; if (!W) return "";
+    if (BOTH) return cmpCard("weather"); const W = window.WEATHER_DATA; if (!W) return "";
     const fromSel = st.p >= 0 ? WX_MAP[P[st.p]] : null;
     const g = WX_G || fromSel || "snow_ice", G = W.groups.find(x => x.id === g), D = W.daily;
     const EV = W.inputs.events, evLab = e => EV[e].label;
@@ -584,6 +588,117 @@
       read: `${READ} ${T.w}관측소 1곳의 날씨로 뉴욕시 전체를 대신했고, 눈·비·바람·추위가 같은 날 겹친 경우가 많아 어느 날씨 때문인지 나눌 수 없습니다. 함께 움직였다는 관찰이지 원인이 아닙니다.`,
       more: `날씨 사건: 눈 = 새로 내린 눈 25mm 이상(그날~2일 뒤), 큰비 = 강수 25mm 이상(그날~다음 날), 더운 날 = 최고 32°C 이상(그날), 추운 날 = 최저 -7°C 이하(그날~다음 날), 바람 센 날 = 하루 평균 풍속 상위 5%(${(+W.inputs.wind_top5_cut_ms).toFixed(1)} m/s 이상, 그날~다음 날). 하루 배율 = (신고+1) ÷ (평소+1), 평소 = 같은 달·같은 요일 중앙값. 판정: 기본·가장 큰 하루 제외·집중 주소 제외 모두 ×1.25 이상이면 「많음 (유지)」, 모두 ×0.8 이하이면 「적음 (유지)」. 「(참고)」 행은 관련이 적은 날씨로, 사건이 겹쳐서 생긴 차이일 수 있습니다. 자세한 내용: reports/weather_report.md` });
   }
+  // ---------- two-year view: analysis cards shown side by side, not pooled (reports/year_dashboard_report.md) ----------
+  function cmpCard(kind) {
+    const CD = window.COMPARE_DATA;
+    const tag = `<span class="fixtag">두 해 나란히 · 합치지 않음</span>`;
+    const more = `각 해를 같은 방식으로 따로 계산한 결과를 나란히 놓았습니다. 관찰 기간이 해마다 따로 정해져 있어 두 해를 섞어 다시 계산하지 않았습니다. 차이가 우연인지는 검정하지 않았습니다. 자세한 내용: <a href="../reports/year_dashboard_report.md" target="_blank">대시보드 지난해 화면 보고서</a>`;
+    const only = (q, why) => card({ q, cls: "fixed", what: `${tag} ${why}`, body: `<p class="note">위쪽 「기준 연도」에서 올해 또는 지난해를 고르면 이 카드의 연도별 결과를 볼 수 있습니다.</p>` });
+    if (!CD) return only("연도별 결과", "두 해 비교표를 불러오지 못했습니다.");
+    const f2 = v => v == null ? "-" : `×${(+v).toFixed(2)}`, f1 = v => v == null ? "-" : (+v).toFixed(1), pp = v => v == null ? "-" : `${v > 0 ? "+" : ""}${(+v).toFixed(1)}%p`;
+    const pN = n => KO[n] || n, bN = b => BKO[b] || b;
+    const same = (a, b) => a === b ? "" : ' <span class="tag warn">다름</span>';
+    if (kind === "weather") {
+      const r = CD.weather, k = r.filter(x => x.status_prev === x.status_cur).length;
+      return card({ id: "when-wx", cls: "fixed", q: "날씨가 궂은 날 관련 민원이 늘어나나요? (두 해 나란히)", what: `${tag} 같은 달·같은 요일의 평소 수준과 비교한 배율입니다(센트럴파크 관측소).`,
+        meta: meta("배", "날씨 사건 기간 vs 같은 달 다른 날", "각 해 하루 전체가 포함된 날"),
+        body: table(["민원 묶음", "날씨", "지난해", "올해"], r.map(x => [esc(x.label), esc(x.event_label), `${f2(x.rel_main_prev)} <small>${esc(x.status_prev)}</small>`, `${f2(x.rel_main_cur)} <small>${esc(x.status_cur)}</small>${same(x.status_prev, x.status_cur)}`]), { num: [2, 3] }),
+        read: `${T.f}관련 날씨 ${r.length}개 조합 중 ${k}개는 두 해의 판정이 같았습니다. ${T.w}함께 움직였다는 관찰이지 원인이 아닙니다.`, more });
+    }
+    if (kind === "surge") {
+      const r = CD.surge;
+      return card({ id: "time-c6", cls: "fixed", q: "신고가 몰리면 종료 기록이 늦어지나요? (두 해 나란히)", what: `${tag} 같은 자치구·세부 유형·접수 월끼리 맞춰, 신고가 평소의 2배 이상 몰렸을 때와 평소의 「N일 안에 종료 기록 없음」 차이를 비교합니다.`,
+        meta: meta("%p", "몰림 − 평소 (맞춘 비교)", "4개 업무"),
+        body: table(["업무", "기간", "지난해: 몰림 신고 · 차이 · 판정", "올해: 몰림 신고 · 차이 · 판정"], r.map(x => [esc(x.label), x.metric === "open7" ? "7일" : "30일",
+          `${fmtN(x.n_t_prev)}건 · <b>${pp(x.diff_main_prev)}</b> · <small>${esc(x.status_prev)}</small>`, `${fmtN(x.n_t_cur)}건 · <b>${pp(x.diff_main_cur)}</b> · <small>${esc(x.status_cur)}</small>`]), {}),
+        read: `${T.f}지난해에는 「몰림」에 해당하는 신고가 훨씬 적었고, 올해 「유지」였던 결과가 지난해에는 반복되지 않았습니다(예: 손상된 나무 7일). ${T.c}한 해의 결과로만 읽으세요.`, more });
+    }
+    if (kind === "rereport") {
+      const o = CD.rereport.filter(x => x.unit === "request" && x.scope === "all"), g = y => o.find(x => x.year === y) || {};
+      return card({ id: "time-c4", cls: "fixed", q: "종결 뒤 같은 주소에서 다시 신고가 들어오나요? (두 해 나란히)", what: `${tag} 종결 뒤 N일 안에 같은 번지 주소·같은 유형으로 새 신고가 들어온 비율입니다(각 해 파일 안에서만 찾음).`,
+        meta: meta("%", "지난해 / 올해", "번지 주소의 종결 신고"),
+        body: `<div class="kpis">${[["7일 안 재접수", g("prev").rate_7d, g("cur").rate_7d], ["30일 안 재접수", g("prev").rate_30d, g("cur").rate_30d]].map(([l, a, b]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${f1(a)}% <small>/ ${f1(b)}%</small></div><div class="sub">지난해 / 올해</div></div>`).join("")}</div>` +
+          table(["유형", "지난해 7일 · 30일", "올해 7일 · 30일"], CD.rereport_type.map(x => [esc(pN(x.problem)), `${f1(x.rate_7d_prev)}% · ${f1(x.rate_30d_prev)}%`, `${f1(x.rate_7d_cur)}% · ${f1(x.rate_30d_cur)}%`]), { num: [1, 2] }) +
+          details("난방·온수: 종결 문구별", table(["종결 문구", "지난해 7일 · 30일", "올해 7일 · 30일"], CD.rereport_heat.map(x => [esc(x.rcat), `${f1(x.rate_7d_prev)}% · ${f1(x.rate_30d_prev)}%`, `${f1(x.rate_7d_cur)}% · ${f1(x.rate_30d_cur)}%`]), { num: [1, 2] })),
+        read: `${T.w}재접수는 해결 실패가 아닙니다. 같은 건물의 다른 세대, 새 문제, 같은 사람의 재신고를 구분할 수 없습니다.`, more });
+    }
+    if (kind === "building") {
+      return card({ id: "places-bld", cls: "fixed", q: "건물 규모를 감안해도 난방 신고가 많은 곳은? (두 해 나란히)", what: `${tag} 모든 주거 세대 1,000곳당 난방 신고가 있었던 날(PLUTO 세대 수, 현재 시점 값).`,
+        meta: meta("신고일", "지난해 / 올해", "난방·온수 신고"),
+        body: table(["자치구", "지난해", "올해"], CD.building.map(x => [esc(bN(x.borough)), f1(x.report_days_per_1000_units_prev), f1(x.report_days_per_1000_units_cur)]), { num: [1, 2] }) +
+          `<h4 class="minih">세부 지역 상위 10곳 (올해 순)</h4>` + table(["지역", "지난해 (순위)", "올해 (순위)"], CD.building_cb.map(x => [esc(`${bN(x.cb.slice(3))} ${+x.cb.slice(0, 2)}`), `${f1(x.days_per_1000_prev)} (${x.rank_per_unit_prev}위)`, `${f1(x.days_per_1000_cur)} (${x.rank_per_unit_cur}위)`]), { num: [1, 2] }),
+        read: `${T.f}자치구 순서와 세부 지역 상위권이 두 해 거의 같습니다(59곳 순위 상관 0.985). ${T.w}건물주·기관 평가가 아닙니다.`, more });
+    }
+    if (kind === "place") {
+      return card({ id: "where-place", cls: "fixed", q: "장소 바로 옆에서는 어떤 신고가 더 많은가요? (두 해 나란히)", what: `${tag} 장소(OpenStreetMap, 현재 시점) 100m 안 신고 중 그 유형 비중 ÷ 100~400m 비중.`,
+        meta: meta("배", "100m 안 vs 100~400m", "좌표가 있는 신고"),
+        body: table(["장소", "기대 유형", "지난해", "올해"], CD.place.map(x => [esc(x.cat), esc(pN(x.problem)), `${f2(x.ratio_prev)} <small>(${fmtN(x.n_near_prev)}건)</small>`, `${f2(x.ratio_cur)} <small>(${fmtN(x.n_near_cur)}건)</small>`]), { num: [2, 3] }),
+        read: `${T.f}술집 옆 상업시설 소음, 역 옆 노숙인 지원, 공원 옆 공원 소음은 두 해 비슷합니다. 학교 옆 「교통」은 올해만 높습니다(한 주소의 영향). ${T.w}신고 좌표는 신고된 주소이며 발생원이 아닙니다.`, more });
+    }
+    if (kind === "repeat_profile") {
+      const r = CD.repeat_profile, k = r.filter(x => x.same_side).length;
+      return card({ id: "places-rpt", cls: "fixed", q: "어떤 주소가 「반복 신고 주소」가 되나요? (두 해 나란히)", what: `${tag} 모델의 오즈비 가운데 한 해라도 ×1.25 이상 또는 ×0.8 이하인 항목입니다(기준: 브루클린·엘리베이터 없는 아파트·1920~46년·6~19세대).`,
+        meta: meta("오즈비", "지난해 / 올해", "6개 유형"),
+        body: table(["유형", "항목", "지난해", "올해"], r.map(x => ({ cls: x.same_side ? "" : "small", cells: [esc(pN(x.type)), esc(x.term), f2(x.odds_ratio_prev), f2(x.odds_ratio_cur) + (x.same_side ? "" : ' <span class="tag warn">방향 다름</span>')] })), { num: [2, 3] }),
+        read: `${T.f}이 ${r.length}개 항목 중 ${k}개가 두 해 모두 같은 쪽(1보다 큼/작음)입니다. 세대 수가 가장 큰 차이를 만드는 점이 같습니다. ${T.w}건물주·기관 평가가 아닙니다.`, more });
+    }
+    if (kind === "matched") {
+      return card({ id: "time-c3", cls: "fixed", q: "비슷한 업무끼리 맞추면 자치구 차이가 남나요? (두 해 나란히)", what: `${tag} 절반의 신고가 종료 기록에 도달한 시간: 해당 자치구 vs 나머지 네 곳, 단순 비교와 같은 업무끼리 맞춘 비교.`,
+        meta: meta("시간", "해당 자치구 / 나머지 네 곳", "각 해 관찰 마감 11-11"),
+        body: table(["자치구", "지난해 단순", "지난해 맞춤", "올해 단순", "올해 맞춤"], CD.matched.map(x => [esc(bN(x.borough)), `${f1(x.raw_t_prev)} / ${f1(x.raw_o_prev)}`, `<b>${f1(x.adj_t_main_prev)} / ${f1(x.adj_o_main_prev)}</b>`, `${f1(x.raw_t_cur)} / ${f1(x.raw_o_cur)}`, `<b>${f1(x.adj_t_main_cur)} / ${f1(x.adj_o_main_cur)}</b>`]), { num: [1, 2, 3, 4] }),
+        read: `${T.f}올해는 맞추면 브롱크스 차이가 거의 사라지지만, 지난해에는 맞춘 뒤에도 약 1.75배가 남았습니다. 맨해튼·스태튼아일랜드는 두 해 모두 맞추면 방향이 바뀝니다. ${T.c}지난해 브롱크스의 어떤 업무에서 차이가 남는지는 확인하지 않았습니다. ${T.w}기관이나 지역의 성과로 읽지 마세요.`, more });
+    }
+    if (kind === "repeat") {
+      const L = { addresses: "번지 주소", reports: "번지 주소 신고", addr_ge2_pct: "2건 이상 신고된 주소 비중 (%)", reports_at_ge2_pct: "그 주소들에서 나온 신고 비중 (%)", top_1pct_addr_share: "상위 1% 주소의 신고 비중 (%)", top_10pct_addr_share: "상위 10% 주소의 신고 비중 (%)" };
+      const r = CD.repeat.filter(x => L[x.item]);
+      return card({ id: "places-c3", cls: "fixed", q: "신고는 여러 주소에 퍼져 있나요, 같은 주소의 반복인가요? (두 해 나란히)", what: `${tag} 번지가 있는 주소의 신고 기준, 각 해 안에서 계산.`,
+        meta: meta("곳, 건, %", "지난해 / 올해", "번지 주소"),
+        body: table(["항목", "지난해", "올해"], r.map(x => [L[x.item], x.prev >= 1000 ? fmtN(x.prev) : f1(x.prev), x.cur >= 1000 ? fmtN(x.cur) : f1(x.cur)]), { num: [1, 2] }),
+        read: `${T.f}두 해 모두 신고의 92% 이상이 2건 이상 신고된 주소에서 나왔습니다. ${T.w}다시 신고됐다는 것이 해결 실패나 재발이라는 뜻은 아닙니다.`, more });
+    }
+    if (kind === "poi") return only("신고가 몰린 주소: 주변 장소 때문인가요?", "상위 30개 주소가 해마다 달라 두 해를 합치거나 나란히 놓지 않았습니다.");
+    if (kind === "nycha") return only("공공임대주택(NYCHA)에서는 어떤 신고가 들어오나요?", "연도별로만 계산했습니다(세대 대비 순위 상관은 두 해 모두 0.99).");
+    return "";
+  }
+
+  // ---------- spike-day clues: what else is known about the busiest days (build_spike_data.py) ----------
+  const EVK = { "Parade": "퍼레이드", "Street Festival": "거리 축제", "Athletic Race / Tour": "달리기·투어", "Stationary Demonstration": "집회", "Religious Event": "종교 행사",
+    "Single Block Festival": "블록 축제", "Open Culture": "오픈 컬처", "Special Event": "특별 행사" };
+  const EVR = { "Parade": 1, "Street Festival": 2, "Athletic Race / Tour": 3, "Stationary Demonstration": 4, "Religious Event": 5, "Single Block Festival": 6, "Open Culture": 7, "Special Event": 8 };
+  function spikeClues(ds) {
+    const SD = window.SPIKE_DATA; if (!SD || !ds.length) return "";
+    const key = st.b >= 0 && st.p >= 0 ? `bp:${B[st.b]}|${P[st.p]}` : st.b >= 0 ? `b:${B[st.b]}` : st.p >= 0 ? `p:${P[st.p]}` : "c";
+    const E = SD.entries[key] || {}, bo = st.b >= 0 ? B[st.b] : null;
+    const prevDay = d => { const t = new Date(d + "T12:00:00"); t.setDate(t.getDate() - 1); return t.toISOString().slice(0, 10); };
+    const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+    const wxTxt = d => {
+      const w = SD.weather[d], w0 = SD.weather[prevDay(d)]; if (!w) return "-";
+      const [tx, tn, pr, sn] = w, tags = [];
+      // precipitation includes melted snow, so heavy rain is flagged only when little snow fell that day
+      if ((sn || 0) >= 25 || (w0 && (w0[3] || 0) >= 25)) tags.push("큰눈");
+      if (((pr || 0) >= 25 && (sn || 0) < 10) || (w0 && (w0[2] || 0) >= 25 && (w0[3] || 0) < 10)) tags.push("큰비");
+      if (tx != null && tx >= 32) tags.push("더위"); if (tn != null && tn <= -7) tags.push("추위"); if (w[5] != null && w[5] >= SD.wind_cut_ms) tags.push("강풍");
+      return `${tags.length ? `<b>${tags.join("·")}</b><br>` : ""}<small>최고 ${tx ?? "-"}° 최저 ${tn ?? "-"}° · 비 ${pr ?? 0}mm · 눈 ${sn ?? 0}mm${w0 && (w0[3] > 0 || w0[2] >= 10) ? ` (전날 비 ${w0[2]}mm·눈 ${w0[3]}mm)` : ""}</small>`;
+    };
+    const evTxt = d => {
+      const day = SD.events[d] || {}; const boros = bo ? [bo] : Object.keys(day);
+      const n = boros.reduce((t, b) => t + ((day[b] && day[b].n) || 0), 0);
+      const top = boros.flatMap(b => ((day[b] && day[b].top) || []).map(t => ({ b, t }))).sort((x, y) => (EVR[x.t[0]] || 9) - (EVR[y.t[0]] || 9)).slice(0, bo ? 4 : 3);
+      if (!n) return `<small>${SD.events[d] ? "허가 기록 없음" : "자료 없음"}</small>`;
+      return `<small>비스포츠 허가 ${fmtN(n)}건${bo ? "" : " (5개 자치구)"}</small>` + (top.length ? "<br>" + top.map(({ b, t }) => `<small><b>${esc(EVK[t[0]] || t[0])}</b> ${esc(t[1])}${bo ? "" : ` (${esc(BKO[b] || b)})`} ${esc(t[3])}~</small>`).join("<br>") : "<br><small>퍼레이드·축제·집회 등은 없음</small>");
+    };
+    const rows = ds.map(d => {
+      const e = E[d]; const wd = DOW[new Date(d + "T12:00:00").getDay()];
+      const ex = e ? [...(e.x || []).map(([k, n, u]) => `${esc(pShort(P.indexOf(k)) || KO[k] || k)} +${fmtN(n - (u || 0))}`), ...(e.bx || []).map(([k, n, u]) => `${esc(BKO[k] || k)} +${fmtN(n - (u || 0))}`)] : [];
+      const hol = SD.holidays[d] || SD.holidays[prevDay(d)] && `전날 ${SD.holidays[prevDay(d)]}`;
+      return [`${d} (${wd})`, e ? `${fmtN(e.n)}${e.u != null ? ` <small>/ 평소 ${fmtN(e.u)} (×${(e.n / Math.max(1, e.u)).toFixed(1)})</small>` : ""}` : "-",
+        ex.length ? ex.slice(0, 4).join("<br>") : "-", e && e.fo ? `${fmtN(e.fo)} <small>(${pct(e.fo, e.n)})</small>` : "-", wxTxt(d), hol ? esc(hol) : "-", evTxt(d)];
+    });
+    return `<h4 class="minih">그날 무슨 일이 있었나요? (위 5일)</h4>` +
+      table(["날짜", "신고 / 평소", "평소보다 많았던 것", "집중 주소", "날씨 (센트럴파크)", "휴일", `허가 행사${bo ? ` (${esc(BKO[bo] || bo)})` : ""}`], rows, { num: [1, 3] }) +
+      `<p class="note">평소 = 같은 요일의 1~4주 전후 값의 중앙값(하루 전체가 있는 날만). ${key.startsWith("bp:") ? "지역과 유형을 모두 골라 「평소보다 많았던 것」은 더 나누지 않습니다." : `「평소보다 많았던 것」은 ${key === "c" ? "평소보다 늘어난 유형과 자치구" : key.startsWith("b:") ? "그 자치구 안에서 늘어난 유형" : "그 유형이 늘어난 자치구"}입니다.`} 행사는 NYC 허가 행사 자료에서 그날 열린 72시간 이하 비스포츠 허가이고, 퍼레이드·축제·달리기·집회·종교 행사·음악 행사 이름만 골라 보여 줍니다.</p>` +
+      `<p class="warnline">${T.w}같은 날 일어난 일을 나란히 놓은 것입니다. 허가는 실제 개최·관객 수를 증명하지 않고, 행사나 날씨가 있었다고 그것이 신고 급증의 원인이라는 뜻이 아닙니다. 「집중 주소」 비중이 크면 한 주소의 연속 접수가 급증의 큰 몫입니다.</p>`;
+  }
   function renderWhen() {
     $("when-applies").innerHTML = appliesBar("when");
     const R = regionInfo();
@@ -624,13 +739,13 @@
         `<p class="note">두 해 모두 하루 전체가 포함된 날(11-02 ~ 10-30)만 쓰고, 같은 전처리 규칙입니다. 같은 날짜라도 요일 구성이 하루씩 달라 맞추지 않았습니다.</p>`; })();
     const c1 = card({ id: "when-c1", q: "어느 달에 신고가 많았나요?",
       what: `선택한 대상(${esc(selName)})의 월별 하루 평균 신고 수와, 전체 신고와의 모양 비교입니다.`,
-      meta: meta("건/일 (하루 평균)", "아래 선 그래프: 각 달의 하루 평균 ÷ 12개월 하루 평균 × 100 (100 = 평소 수준). 실선 = 선택 대상, 점선 = 전체 신고", `하루 전체가 포함된 날만 (${YR.first_full} ~ ${YR.last_full}) · ${st.x ? "집중 주소 제외" : "집중 주소 포함"}`),
+      meta: meta("건/일 (하루 평균)", "아래 선 그래프: 각 달의 하루 평균 ÷ 전체 기간 하루 평균 × 100 (100 = 평소 수준). 실선 = 선택 대상, 점선 = 전체 신고", `하루 전체가 포함된 날만 (${FULLTXT}) · ${st.x ? "집중 주소 제외" : "집중 주소 포함"}`),
       body: (as ? vbars(items, { w: wOf("when-body") - 40, labels: true, aria: "월별 하루 평균" }) +
         lines(M.map((_, i) => mShort(i)), [{ name: "선택", color: "var(--s1)", values: idxSel }, { name: "전체", color: "#8a8984", values: idxAll, dash: true }],
           { w: wOf("when-body") - 40, h: 170, ref: 100, fmtAxis: v => Math.round(v), tips: i => `<b>${mLabel(i)}</b><br>선택 대상 ${idxSel[i] ? Math.round(idxSel[i]) : "-"} · 전체 ${Math.round(idxAll[i])} (100 = 평소)`, aria: "월별 지수" }) + oyChart
         : emptyBox(NO_DATA)),
-      read: as ? `${T.f}가장 많은 달은 ${mLabel(peak)}(하루 ${fmtN(ms[peak].v)}건, 평소의 ${Math.round(idxSel[peak])}%), 가장 적은 달은 ${mLabel(low)}(평소의 ${Math.round(idxSel[low])}%)입니다. ${idxSel[peak] >= 250 ? "한두 달에 크게 몰린 경우 몇몇 주소나 특정 사건의 영향일 수 있으니 3번 화면에서 확인하세요. " : ""}${T.w}두 해 자료만으로는 매년 반복되는 계절성이라고 단정할 수 없습니다.${st.m >= 0 ? " 기간을 한 달로 골라도 이 그래프는 12개월을 모두 보여 주고 선택한 달을 진하게 표시합니다." : ""}` : "",
-      more: PREV ? "달마다 날 수가 달라 건수 대신 하루 평균으로 비교합니다. 지난해 자료는 첫날·마지막 날도 하루 전체가 들어 있지만, 올해와 같은 기준으로 비교하려고 2024년 11월 1일과 2025년 10월 31일을 빼서 각각 29일·30일 기준으로 계산했습니다."
+      read: as ? `${T.f}가장 많은 달은 ${mLabel(peak)}(하루 ${fmtN(ms[peak].v)}건, 평소의 ${Math.round(idxSel[peak])}%), 가장 적은 달은 ${mLabel(low)}(평소의 ${Math.round(idxSel[low])}%)입니다. ${idxSel[peak] >= 250 ? "한두 달에 크게 몰린 경우 몇몇 주소나 특정 사건의 영향일 수 있으니 3번 화면에서 확인하세요. " : ""}${T.w}두 해 자료만으로는 매년 반복되는 계절성이라고 단정할 수 없습니다.${st.m >= 0 ? " 기간을 한 달로 골라도 이 그래프는 모든 달을 보여 주고 선택한 달을 진하게 표시합니다." : ""}` : "",
+      more: BOTH ? "달마다 날 수가 달라 건수 대신 하루 평균으로 비교합니다. 각 해의 첫 달(11월)과 마지막 달(10월)은 하루 전체가 아닌 날을 빼고 계산합니다(지난해 11-01·10-31, 올해 11-01·10-31)." : PREV ? "달마다 날 수가 달라 건수 대신 하루 평균으로 비교합니다. 지난해 자료는 첫날·마지막 날도 하루 전체가 들어 있지만, 올해와 같은 기준으로 비교하려고 2024년 11월 1일과 2025년 10월 31일을 빼서 각각 29일·30일 기준으로 계산했습니다."
         : "달마다 날 수가 달라 건수 대신 하루 평균으로 비교합니다. 2025년 11월과 2026년 10월은 일부 시간만 수집된 첫날·마지막 날을 빼서 각각 29일·30일 기준입니다." });
     // weekday + hour (FULL_DAY)
     let c2, c3;
@@ -647,14 +762,14 @@
       const wItems = ws.map((x, i) => ({ label: DN[i] + "요일", value: wsm ? x.v / wsm * 100 : 0, valueText: `${wsm ? Math.round(x.v / wsm * 100) : 0} (하루 ${x.v < 10 ? x.v.toFixed(1) : fmtN(x.v)}건)`, valueShort: `${wsm ? Math.round(x.v / wsm * 100) : 0}`,
         value2: wam ? wa[i].v / wam * 100 : 0, value2Text: `${wam ? Math.round(wa[i].v / wam * 100) : 0}`, tip: `<b>${DN[i]}요일</b><br>선택 대상 하루 평균 ${fmtN(x.v)}건 (${fmtN(x.n)}건 ÷ ${x.d}일)<br>전체 하루 평균 ${fmtN(wa[i].v)}건` }));
       c2 = card({ id: "when-c2", q: "어느 요일에 신고가 많나요?", what: "요일별 하루 평균을 그 대상의 7일 평균과 비교한 값입니다(100 = 그 대상의 평소 수준).",
-        meta: meta("지수 (100 = 평소)", "회색 = 전체 신고의 같은 지수", `하루 전체가 포함된 날 · ${st.m >= 0 ? mLabel(st.m) : "12개월"}`),
+        meta: meta("지수 (100 = 평소)", "회색 = 전체 신고의 같은 지수", `하루 전체가 포함된 날 · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}`),
         body: ws.some(x => x.n) ? legend([["var(--s1)", "선택 대상"], ["#c9c8c3", "전체 신고"]]) + hbars(wItems, { series: [{ key: "value", color: "var(--s1)" }, { key: "value2", color: "#c9c8c3" }], w: wOf("when-body") - 40, labelW: 70, valW: 170, aria: "요일" }) : emptyBox(NO_DATA),
         read: `${T.w}요일 차이에는 신고하는 사람의 생활 리듬과 업무 일정이 함께 섞여 있습니다.` });
       const hr = s => { const rr = f(HR, s); const tot = rr.reduce((t, r) => t + r[6], 0); return Array.from({ length: 24 }, (_, h) => { const n = rr.filter(r => r[5] === h).reduce((t, r) => t + r[6], 0); return tot ? n / tot * 100 : null; }); };
       const hs = hr(sSel), ha = hr(sA); const hp = hs.reduce((b, v, i) => (v || 0) > (hs[b] || 0) ? i : b, 0);
       const night = [22, 23, 0, 1, 2, 3].reduce((t, h) => t + (hs[h] || 0), 0), nightA = [22, 23, 0, 1, 2, 3].reduce((t, h) => t + (ha[h] || 0), 0);
       c3 = card({ id: "when-c3", q: "하루 중 언제 신고가 들어오나요?", what: "각 시간대에 접수된 신고가 그 대상 전체의 몇 %인지 보여 줍니다.",
-        meta: meta("% (하루 전체 = 100%)", "점선 = 전체 신고", `하루 전체가 포함된 날 · ${st.m >= 0 ? mLabel(st.m) : "12개월"}`),
+        meta: meta("% (하루 전체 = 100%)", "점선 = 전체 신고", `하루 전체가 포함된 날 · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}`),
         body: hs.some(v => v) ? lines(Array.from({ length: 24 }, (_, h) => `${h}시`), [{ color: "var(--s1)", values: hs }, { color: "#8a8984", values: ha, dash: true }],
           { w: wOf("when-body") - 40, h: 200, fmtAxis: v => v.toFixed(0) + "%", tips: i => `<b>${i}시대</b><br>선택 대상 ${(hs[i] || 0).toFixed(1)}% · 전체 ${(ha[i] || 0).toFixed(1)}%`, aria: "시간대" }) : emptyBox(NO_DATA),
         read: hs.some(v => v) ? `${T.f}가장 많은 시간대는 ${hp}시대(${hs[hp].toFixed(1)}%)입니다. 밤 10시~새벽 4시 접수 비중은 ${night.toFixed(1)}%(전체 ${nightA.toFixed(1)}%)입니다.` : "" });
@@ -673,17 +788,18 @@
     else {
       const dates = dly.dates; let ix = dates.map((_, i) => i);
       if (st.m >= 0) ix = ix.filter(i => dates[i].slice(0, 7) === M[st.m]);
-      const vals = ix.map(i => series[i] || 0), full = ix.filter(i => dates[i] >= YR.first_full && dates[i] <= YR.last_full);
+      const vals = ix.map(i => series[i] || 0), full = ix.filter(i => YR.isFull(dates[i]));
       const fv = full.map(i => series[i] || 0).sort((a, b) => a - b), med = fv.length ? fv[Math.floor(fv.length / 2)] : 0, total = vals.reduce((a, b) => a + b, 0);
       const topd = full.map(i => [i, series[i] || 0]).sort((a, b) => b[1] - a[1]).slice(0, 5);
       const marks = topd.map(([i]) => ix.indexOf(i));
       c4 = card({ id: "when-c4", q: "특정 날짜에 갑자기 늘었나요?", what: "하루하루의 신고 수입니다. 파란 띠는 신고가 가장 많았던 5일입니다.",
-        meta: meta("건/일", "그 기간 하루 신고 수의 중앙값(보통의 날)", `${esc(selName)} · ${st.m >= 0 ? mLabel(st.m) : "12개월"}`),
+        meta: meta("건/일", "그 기간 하루 신고 수의 중앙값(보통의 날)", `${esc(selName)} · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}`),
         body: total ? lines(ix.map(i => dates[i].slice(5)), [{ color: "var(--s1)", values: vals }], { w: wOf("when-body") - 40, h: 200, marks, ref: med,
-          tips: k => `<b>${dates[ix[k]]}</b><br>${fmtN(vals[k])}건${dates[ix[k]] === YR.start || dates[ix[k]] === YR.last_day ? (YR.partial_edges ? " (일부 시간만 수집된 날)" : " (올해와 맞추려고 급증 목록에서 뺀 날)") : ""}`, aria: "일별" }) +
-          table(["날짜", "신고 수", "보통의 날 대비", "1년(기간) 신고 중 비중"], topd.map(([i, n]) => [dates[i], fmtN(n), med ? `${(n / med).toFixed(1)}배` : "-", pct(n, total)]), { num: [1, 2, 3] }) : emptyBox(NO_DATA),
+          tips: k => `<b>${dates[ix[k]]}</b><br>${fmtN(vals[k])}건${(YR.partial_days || []).includes(dates[ix[k]]) ? " (일부 시간만 수집된 날)" : !YR.isFull(dates[ix[k]]) ? " (하루 평균·급증 목록에서 뺀 날)" : ""}`, aria: "일별" }) +
+          table(["날짜", "신고 수", "보통의 날 대비", "기간 신고 중 비중"], topd.map(([i, n]) => [dates[i], fmtN(n), med ? `${(n / med).toFixed(1)}배` : "-", pct(n, total)]), { num: [1, 2, 3] }) +
+          spikeClues(topd.map(([i]) => dates[i])) : emptyBox(NO_DATA),
         read: total ? `${T.f}가장 많은 날 하루가 이 기간 신고의 ${pct(topd[0][1], total)}입니다. 하루가 큰 몫을 차지하면 「특정 날의 급증」, 막대가 여러 달 고르게 높으면 「이어지는 패턴」입니다. ${T.w}급증 원인(날씨, 행사, 시스템)은 이 자료로 확인하지 않았습니다.` : "",
-        more: `보통의 날 = 하루 전체가 포함된 날들의 하루 신고 수 중앙값. 첫날(${YR.start})과 마지막 날(${YR.last_day})은 ${YR.partial_edges ? "일부 시간만 들어 있어" : "올해 자료와 같은 기준으로 맞추려고"} 급증 목록에서 뺐습니다.` });
+        more: `보통의 날 = 하루 전체가 포함된 날들의 하루 신고 수 중앙값. 급증 목록에는 하루 전체가 포함된 날(${FULLTXT})만 씁니다.${BOTH ? " 2025-10-31(지난해 마지막 날)과 2025-11-01(올해 파일은 21:09부터)도 각 해 기준에 따라 뺐습니다." : ""}` });
     }
     $("when-body").innerHTML = c1 + monthCompCard([R.name, st.a >= 0 ? aName(st.a) : ""].filter(Boolean).join(" · ") + (st.x ? " · 집중 주소 제외" : "")) + c2 + (c3 || "") + c4 + weatherCard();
   }
@@ -692,7 +808,7 @@
   // ---------- requests around places (OSM; reports/place_centred_report.md) ----------
   let PL_C = "bar";
   function placeCard() {
-    const PL = window.PLACE_DATA; if (!PL) return "";
+    if (BOTH) return cmpCard("place"); const PL = window.PLACE_DATA; if (!PL) return "";
     const LBL = { bar: "술집·클럽", station: "지하철·기차역", school: "학교", auto: "자동차 정비·세차", park: "공원·놀이터", hospital: "병원", cemetery: "묘지" };
     const VERDICT = { bar: "장소·시간 모두 맞음", station: "장소는 뚜렷, 시간은 일부", school: "양보다 시간대가 다름", auto: "시간대가 맞음", park: "장소는 맞지만 시간 신호 없음", hospital: "관계 없음", cemetery: "관계 없음" };
     const fx = v => v == null ? "-" : `×${(+v).toFixed(2)}`, pp = v => v == null ? "-" : `${v > 0 ? "+" : ""}${(+v).toFixed(1)}%p`, pc = v => v == null ? "-" : `${(+v).toFixed(1)}%`;
@@ -726,7 +842,7 @@
   }
   // ---------- concentrated addresses: surroundings (OSM) and reporting pattern (reports/poi_report.md) ----------
   function poiCard() {
-    const PD = window.POI_DATA; if (!PD) return "";
+    if (BOTH) return cmpCard("poi"); const PD = window.POI_DATA; if (!PD) return "";
     const pc = v => v == null ? "-" : `${(+v).toFixed(0)}%`, f1 = v => v == null ? "-" : (+v).toFixed(1);
     const sel = st.b >= 0 ? B[st.b] : null;
     const ch = r => r.mobile_pct >= 90 ? `앱 ${pc(r.mobile_pct)}` : r.online_pct >= 90 ? `온라인 ${pc(r.online_pct)}` : r.phone_pct >= 50 ? `전화 ${pc(r.phone_pct)}` : `온라인 ${pc(r.online_pct)}·앱 ${pc(r.mobile_pct)}`;
@@ -754,7 +870,7 @@
   // ---------- which addresses become repeated-request addresses (reports/repeat_profile_report.md) ----------
   let RPT_T = null;
   function repeatProfileCard() {
-    const RP = window.REPEAT_PROFILE_DATA; if (!RP) return "";
+    if (BOTH) return cmpCard("repeat_profile"); const RP = window.REPEAT_PROFILE_DATA; if (!RP) return "";
     const TYPES = RP.coverage.map(r => r.type);
     const fromSel = st.p >= 0 && TYPES.includes(P[st.p]) ? P[st.p] : null;
     const T_ = RPT_T || fromSel || "Noise - Residential";
@@ -789,7 +905,7 @@
   }
   // ---------- NYCHA public housing in the 311 data (reports/nycha_report.md) ----------
   function nychaCard() {
-    const N = window.NYCHA_DATA; if (!N) return "";
+    if (BOTH) return cmpCard("nycha"); const N = window.NYCHA_DATA; if (!N) return "";
     const S = N.summary, f1 = v => v == null ? "-" : (+v).toFixed(1), pc = v => v == null ? "-" : `${(+v).toFixed(v < 0.1 ? 2 : 1)}%`, fx = v => v == null ? "-" : `×${(+v).toFixed(2)}`;
     const pName = n => P.indexOf(n) >= 0 ? pShort(P.indexOf(n)) : (KO[n] || n);
     const sh = table(["유형 (담당)", "전체", "NYCHA 필지", "비중", `세대 비중(${S.unit_share_pct.toFixed(1)}%) 대비`],
@@ -819,7 +935,7 @@
   }
   // ---------- heat complaints by building size (PLUTO + HPD violations; reports/building_report.md) ----------
   function buildingCard() {
-    const BD = window.BUILDING_DATA; if (!BD) return "";
+    if (BOTH) return cmpCard("building"); const BD = window.BUILDING_DATA; if (!BD) return "";
     const f0 = v => v == null ? "-" : Math.round(v).toLocaleString(), pc = v => v == null ? "-" : `${v.toFixed(0)}%`;
     const bar = (v, max, col) => `<span class="hbarc"><i style="width:${Math.max(1, v / max * 100).toFixed(1)}%;background:${col}"></i></span>`;
     const mb = Math.max(...BD.borough.map(r => r.report_days_per_1000_units));
@@ -913,8 +1029,9 @@
         valueText: `${fmtN(inc[i])} (${rkI[i]}위)`, value2Text: `${fmtN(exc[i])} (${rkE[i]}위)`, valueShort: fmtN(inc[i]), value2Short: fmtN(exc[i]), tip: `<b>${esc(bLabel(i))}</b><br>포함 ${fmtN(inc[i])} · 제외 ${fmtN(exc[i])}<br>감소 ${pct(inc[i] - exc[i], inc[i])}` })),
         { series: [{ key: "value", color: "var(--s1)" }, { key: "value2", color: "var(--s2)" }], w: wOf("places-body") - 40, labelW: 120, valW: 130, aria: "포함 제외" }) : emptyBox(NO_DATA),
       read: changed ? `${T.f}이 주소를 빼면 브롱크스가 ${fmtN(inc[FOCUS_B])} → ${fmtN(exc[FOCUS_B])}건(${pct(inc[FOCUS_B] - exc[FOCUS_B], inc[FOCUS_B])} 감소)${rkI[FOCUS_B] !== rkE[FOCUS_B] ? `, 순위 ${rkI[FOCUS_B]}위 → ${rkE[FOCUS_B]}위` : ""}입니다. ${T.w}빼고 본 결과가 정답이라는 뜻은 아닙니다. 그 신고도 실제로 접수된 기록입니다.`
-        : `${T.f}현재 조건에는 이 주소의 신고가 없어 결과가 같습니다. 이 주소는 주로 주거 소음${PREV ? "" : "(2025-11 ~ 2026-04)"}에 해당합니다.` });
+        : `${T.f}현재 조건에는 이 주소의 신고가 없어 결과가 같습니다. 이 주소는 주로 주거 소음${PREV || BOTH ? "" : "(2025-11 ~ 2026-04)"}에 해당합니다.` });
     // fixed reference: repeat at house-numbered addresses
+    if (!X.repeat) { $("places-body").innerHTML = c1 + c2 + cmpCard("repeat") + poiCard() + repeatProfileCard() + nychaCard() + buildingCard(); return; }
     const RP = X.repeat, q1 = RP.q1;
     const bins = RP.bins.map(b => ({ label: `${b.bin}건`, value: b.addr_pct, value2: b.report_pct, valueText: `주소 ${b.addr_pct.toFixed(1)}%`, value2Text: `신고 ${b.report_pct.toFixed(1)}%`, valueShort: `${b.addr_pct.toFixed(1)}%`, value2Short: `${b.report_pct.toFixed(1)}%`,
       tip: `<b>1년에 ${b.bin}건 신고된 주소</b><br>주소 ${fmtN(b.addresses)}곳 (${b.addr_pct.toFixed(1)}%)<br>신고 ${fmtN(b.reports)}건 (${b.report_pct.toFixed(1)}%)` }));
@@ -941,7 +1058,7 @@
   // ---------- re-report after closure, and survival view of closure time (reports/rereport_report.md) ----------
   // ---------- surge vs closure delay (reports/surge_delay_report.md) ----------
   function surgeCard() {
-    const SG = window.SURGE_DATA; if (!SG) return "";
+    if (BOTH) return cmpCard("surge"); const SG = window.SURGE_DATA; if (!SG) return "";
     const pp = v => `${v > 0 ? "+" : ""}${v.toFixed(1)}%p`, pc = v => v == null ? "-" : `${v.toFixed(1)}%`;
     const order = ["heat", "hydrant", "tree", "pothole"];
     const sel = st.p >= 0 ? ({ "HEAT/HOT WATER": "heat", "Damaged Tree": "tree", "Street Condition": "pothole", "Water System": "hydrant", "Water Maintenance": "hydrant" })[P[st.p]] : null;
@@ -962,7 +1079,7 @@
       more: "업무량 = 접수일 직전 7일 동안 같은 자치구·업무의 신고 수. 평소 = 그 값의 직전 28일 중앙값. 몰림 = 2배 이상, 평소 = 1.25배 미만. 처음 35일은 평소 수준을 계산할 수 없어 제외. 기준을 바꾼 4가지: 평소 56일, 몰림 기준 1.5배, 같은 날·장소·유형 묶음당 1건, HPD가 열어 둔 기록 제외. 모든 기준에서 같은 방향이고 2.5%p 이상이면 「유지」. 포트홀은 평소 56일 기준에서 비교 가능한 신고가 12%뿐이라 방향이 바뀝니다. 자세한 내용: reports/surge_delay_report.md" });
   }
   function rereportCards() {
-    const RR = window.REREPORT_DATA; if (!RR) return "";
+    if (BOTH) return cmpCard("rereport"); const RR = window.REREPORT_DATA; if (!RR) return "";
     const pIdx = n => P.indexOf(n), pNm = n => pIdx(n) >= 0 ? pShort(pIdx(n)) : n;
     const f1 = v => v == null ? "-" : `${v.toFixed(1)}%`, fh = v => v == null ? "-" : fmtHtxt(v);
     const name = st.p >= 0 ? P[st.p] : null, tr = name && RR.by_type.find(r => r.problem === name);
@@ -1030,7 +1147,7 @@
     $("time-applies").innerHTML = appliesBar("time");
     const s = Object.assign({}, st, { cd: -1 });
     const rows = cRows(s), N = sum(rows), q = qGet(s.m, s.b, s.a, s.p, s.x), dl = delaySum(s);
-    const selName = [st.b >= 0 ? bLabel(st.b) : "뉴욕시 전체", st.p >= 0 ? pShort(st.p) : "모든 유형", st.a >= 0 ? aName(st.a) : "", st.m >= 0 ? mLabel(st.m) : "12개월"].filter(Boolean).join(" · ");
+    const selName = [st.b >= 0 ? bLabel(st.b) : "뉴욕시 전체", st.p >= 0 ? pShort(st.p) : "모든 유형", st.a >= 0 ? aName(st.a) : "", st.m >= 0 ? mLabel(st.m) : "전체 기간"].filter(Boolean).join(" · ");
     const agencies = (() => { const m = new Map(); rows.forEach(r => m.set(r[2], (m.get(r[2]) || 0) + r[8])); return [...m.entries()].sort((x, y) => y[1] - x[1]); })();
     const agLine = st.p >= 0 && agencies.length ? `<div class="agline">담당 기관: ${agencies.slice(0, 2).map(([a, n]) => `<b>${esc(aLabel(a))}</b> — ${esc(aMission(a))} <button class="hbtn" data-help="agency:${A[a]}">기관 설명</button>`).join("<br>")}</div>` : "";
     const kp = [
@@ -1046,7 +1163,7 @@
       meta: meta("시간·일, %", "", `현재 조건 신고 ${fmtN(N)}건`), body: agLine + kpis,
       read: `${T.w}위 두 시간 값과 아래 두 비율은 계산 대상이 다릅니다. 시간 값은 이미 종료 기록이 있는 신고만으로 계산하므로, 오래 걸려 아직 열려 있는 신고가 빠져 실제보다 짧게 보일 수 있습니다. 7일·30일 비율은 그만큼 지켜볼 수 있었던 신고 전체가 분모입니다.`,
       more: "시간 값: 상태가 Closed이고, 처리 시간(종료 − 접수)이 0보다 크며, 상태와 종료일이 서로 맞는 신고(기존 EDA 기준). 중앙값 = median, 90% 시점 = quantile_cont(0.9), 조건마다 원자료에서 정확히 계산.<br>" +
-        (PREV ? "7일·30일 비율과 위 시간 값: 지난해 자료는 2026-11-25에 받아 그 뒤에 닫힌 기록도 들어 있지만, 올해와 같은 길이로 지켜보도록 2025-11-11 00:00 전 종료 시각만 종료로 봤습니다(그 뒤에 닫힌 신고는 열린 신고로 셈)." : "7일·30일 비율: 관찰 마감을 2026-11-11 00:00으로 가정(원본 파일은 2026-11-12자이지만 기록된 종료 시각이 2026-11-11 03:25에서 끝남).") + " 마감 전 종료 시각이 있으면 종료로 보고, 종료 시각이 접수보다 빠른 기록은 제외. 이 기준은 상태가 Closed가 아니어도 종료 시각이 있으면 종료로 봅니다." });
+        (BOTH ? "7일·30일 비율과 위 시간 값: 각 해의 관찰 마감(2025-11-11, 2026-11-11)을 따로 적용했습니다. 지난해 신고는 그 뒤에 닫힌 기록을 쓰지 않습니다." : PREV ? "7일·30일 비율과 위 시간 값: 지난해 자료는 2026-11-25에 받아 그 뒤에 닫힌 기록도 들어 있지만, 올해와 같은 길이로 지켜보도록 2025-11-11 00:00 전 종료 시각만 종료로 봤습니다(그 뒤에 닫힌 신고는 열린 신고로 셈)." : "7일·30일 비율: 관찰 마감을 2026-11-11 00:00으로 가정(원본 파일은 2026-11-12자이지만 기록된 종료 시각이 2026-11-11 03:25에서 끝남).") + " 마감 전 종료 시각이 있으면 종료로 보고, 종료 시각이 접수보다 빠른 기록은 제외. 이 기준은 상태가 Closed가 아니어도 종료 시각이 있으면 종료로 봅니다." });
     // same work compared across boroughs
     let c2;
     if (st.p < 0) {
@@ -1069,12 +1186,13 @@
       const qa = qGet(s.m, -1, s.a, s.p, s.x);
       c2 = card({ id: "time-c2", q: `같은 유형(${esc(pShort(st.p))})끼리 자치구를 비교하면?`,
         what: "같은 민원 유형만 놓고 자치구마다 종료 기록까지 걸린 시간을 보여 줍니다. 순서는 자치구 고정 순서이며 빠른 순위가 아닙니다.",
-        meta: meta("시간 (로그 눈금) · 오른쪽 % = 7일 안에 종료 기록이 없는 비율", qa ? `뉴욕시 전체 같은 유형: 절반 ${fmtHtxt(qa[6])}, 90% ${fmtHtxt(qa[7])}` : "", `${esc(pShort(st.p))}${st.a >= 0 ? " · " + esc(aName(st.a)) : ""} · ${st.m >= 0 ? mLabel(st.m) : "12개월"}`),
+        meta: meta("시간 (로그 눈금) · 오른쪽 % = 7일 안에 종료 기록이 없는 비율", qa ? `뉴욕시 전체 같은 유형: 절반 ${fmtHtxt(qa[6])}, 90% ${fmtHtxt(qa[7])}` : "", `${esc(pShort(st.p))}${st.a >= 0 ? " · " + esc(aName(st.a)) : ""} · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}`),
         body: items.length ? dotLog(items, { w: wOf("time-body") - 40, aria: "자치구별 처리 시간" }) : emptyBox(NO_DATA),
         read: `${T.w}같은 유형이어도 세부 유형(예: 포트홀 vs 도로 함몰), 접수 시기, 담당 부서가 지역마다 다를 수 있습니다. 차이가 보이면 아래 「비슷한 업무끼리 맞춘 비교」로 확인하세요. 성과 순위로 읽지 마세요.`,
         more: "회색 점은 계산 대상이 100건 미만이라 참고만 하세요. 7일 비율의 분모는 7일 이상 지켜볼 수 있었던 신고입니다." });
     }
     // fixed reference: matched comparison (playbook)
+    if (!X.playbook) { $("time-body").innerHTML = c1 + c2 + cmpCard("matched") + surgeCard() + rereportCards(); return; }
     const PB = X.playbook, L1 = PB.L1;
     const g = met => Object.fromEntries(L1.filter(x => x.metric === met).map(x => [x.borough, x]));
     const gm = g("median_h"), g30 = g("nonclose30");
@@ -1122,7 +1240,7 @@
   const AG_TOT = A.map((_, i) => sum(C.filter(r => r[2] === i)));
   function fillAgCtl() {
     $("ag-a").innerHTML = A.map((_, i) => i).sort((x, y) => AG_TOT[y] - AG_TOT[x]).map(i => opt(i, `${aName(i)} · ${fmtN(AG_TOT[i])}건`)).join("");
-    $("ag-m").innerHTML = opt(-1, "전체 12개월") + M.map((m, i) => opt(i, mLabel(i))).join("");
+    $("ag-m").innerHTML = opt(-1, `전체 ${M.length}개월`) + M.map((m, i) => opt(i, mLabel(i))).join("");
     $("ag-a").value = AS.a; $("ag-m").value = AS.m; $("ag-x").value = AS.x;
   }
   function renderAgencyCharts() {
@@ -1187,19 +1305,25 @@
           ${x.status !== "verified" || x.note ? `<div class="unv">${x.status !== "verified" ? "<b>일부 미확인</b> · " : ""}${esc(x.note || "")}</div>` : ""}
           <div class="lbl">출처</div><div class="src">${x.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`).join(" · ")}</div></div>`; }).join("");
     } else {
-      const o = D.ref.eda_overview, r = D.ref.eda_resolution, pb = X.playbook.counts;
+      const o = D.ref.eda_overview, r = D.ref.eda_resolution, pb = X.playbook ? X.playbook.counts : null;
       h = table(["항목", "기준", "숫자"], [
         ["기본 분석 대상 신고", "중복 의심(요청 번호만 다르고 나머지가 같은 행) 제외", `${fmtN(o.rows_base)}건`],
         ["기간", `접수 ${o.created_min} ~ ${o.created_max}. 하루 전체가 포함된 날 ${o.full_days}일. 월별·요일별 하루 평균은 이 날들만 사용`, "-"],
-        ["처리 시간 (절반·90%)", (PREV ? "지난해: 2025-11-11 전에 닫힌 기록만 종료로 봄(올해와 같은 관찰 길이). " : "") + "Closed, 처리 시간 > 0, 상태·종료일 불일치 아님 (기존 EDA 기준). 조건마다 원자료에서 정확히 계산. 아직 열린 신고는 빠지므로 오래 걸리는 업무는 실제보다 짧게 나옴(특히 90% 시점, 예: 올해 도로 상태 270 → 625시간). 생존 분석 값은 4번 화면 「아직 열린 신고까지 넣으면」 카드", `${fmtN(r.resolved_rows)}건`],
-        ["7일·30일 종료 기록 없음", `관찰 마감 가정 ${YR.obs} 00:00 전 종료 시각 유무로 판단(상태 값 무관), 종료 시각이 접수보다 빠른 기록 제외, 그 기간을 지켜볼 수 있었던 접수만 분모`, `7일 ${fmtN(pb.elig7)}건 / 30일 ${fmtN(pb.elig30)}건`],
-        ["두 종료 기준의 차이", "EDA 기준은 「상태가 Closed이고 시간이 양수인 정상 종료 기록」을 측정, 새 기준은 「마감 전에 종료 시각이 기록됐는가」를 측정. 어느 한쪽이 정답이 아님. 같은 지표로 섞어 쓰지 않음", `상태는 Closed가 아닌데 종료 시각이 있는 신고 ${fmtN(pb.status_not_closed_but_close_time)}건`],
+        ["처리 시간 (절반·90%)", (PREV ? "지난해: 2025-11-11 전에 닫힌 기록만 종료로 봄(올해와 같은 관찰 길이). " : BOTH ? "두 해 합쳐 보기: 지난해 신고는 2025-11-11 전에 닫힌 기록만 종료로 봄. 두 해 신고를 합쳐 정확히 다시 계산. " : "") + "Closed, 처리 시간 > 0, 상태·종료일 불일치 아님 (기존 EDA 기준). 조건마다 원자료에서 정확히 계산. 아직 열린 신고는 빠지므로 오래 걸리는 업무는 실제보다 짧게 나옴(특히 90% 시점, 예: 올해 도로 상태 270 → 625시간). 생존 분석 값은 4번 화면 「아직 열린 신고까지 넣으면」 카드", `${fmtN(r.resolved_rows)}건`],
+        ["7일·30일 종료 기록 없음", `관찰 마감 가정 ${YR.obs} 00:00 전 종료 시각 유무로 판단(상태 값 무관), 종료 시각이 접수보다 빠른 기록 제외, 그 기간을 지켜볼 수 있었던 접수만 분모`, pb ? `7일 ${fmtN(pb.elig7)}건 / 30일 ${fmtN(pb.elig30)}건` : "-"],
+        ["두 종료 기준의 차이", "EDA 기준은 「상태가 Closed이고 시간이 양수인 정상 종료 기록」을 측정, 새 기준은 「마감 전에 종료 시각이 기록됐는가」를 측정. 어느 한쪽이 정답이 아님. 같은 지표로 섞어 쓰지 않음", pb ? `상태는 Closed가 아닌데 종료 시각이 있는 신고 ${fmtN(pb.status_not_closed_but_close_time)}건` : "-"],
         ["주소", "자치구 + address_key(공백·대소문자만 통일). 약어는 합치지 않음. 주소 없는 신고는 한 장소로 보지 않음", "-"],
         ["세부 지역", "표준 커뮤니티 보드 59곳(코드 01~18)", `${fmtN(CBC.reduce((t, x) => t + x[6], 0))}건`],
         ["집중 주소", "BRONX + 655 EAST 230 STREET", `${fmtN(sum(C.filter(x => x[4] === 1)))}건`],
         ["유형 이름 변경", "환경보호국 「상수도」·「하수」·「유해 물질」이 2026-07-28~29에 끝나고 코드 없는 새 이름으로 이어짐(공식 확인 전). 원래 유형을 그대로 쓰고, 2번 화면 월별 구성 표(체크 상자)와 「더 자세히」의 관계·묶기 분석에서만 합쳐 계산", "-"],
         ["난방 기록 방식 변화", "2026-01-24 접수분부터 HPD가 난방 신고 일부(월 3~10%)를 「조건이 아직 남아 있음」으로 열어 둠(지난해 2024-11·2025-03~05에도 있었고 2025-06 ~ 2026-01 중순에만 거의 없었음). 난방의 7일·30일 종료 기록 없음 비율은 이 날 전후를 비교하지 않음", "-"],
-      ]) + `<h4>날짜 기준 한눈에 보기${PREV ? " (지난해 화면)" : ""}</h4>` + table(["날짜", "뜻", "쓰는 곳"], PREV ? [
+      ]) + `<h4>날짜 기준 한눈에 보기${PREV ? " (지난해 화면)" : ""}</h4>` + table(["날짜", "뜻", "쓰는 곳"], BOTH ? [
+        [`${D.ref.eda_overview.created_min.slice(0, 16)} ~ ${D.ref.eda_overview.created_max.slice(0, 16)}`, "접수 기간 (두 해 자료). 2025-11-01 00:00 ~ 21:09는 두 파일 모두에 없음", "모든 화면"],
+        ["2024-11-02 ~ 2025-10-30, 2025-11-02 ~ 2026-10-30", "하루 평균에 쓰는 날 (726일, 각 해 기준)", "월·요일·시간대 하루 평균, 급증 목록"],
+        ["2025-11-11 / 2026-11-11", "각 해의 관찰 마감. 지난해 신고는 2025-11-11 뒤에 닫힌 기록을 쓰지 않음", "처리 시간, 7일·30일 종료 기록 없음"],
+        ["(연도별)", "날씨·급증과 지연·재접수·건물·장소·반복 주소·맞춘 비교는 두 해를 섞지 않고 나란히 보여 줌", "분석 카드"],
+        ["(올해 자료만)", "행사 카드", "2번 화면 행사 카드"],
+      ] : PREV ? [
         [`${D.ref.eda_overview.created_min.slice(0, 16)} ~ ${D.ref.eda_overview.created_max.slice(0, 16)}`, "접수 기간 (지난해 자료 범위, 첫날·마지막 날도 하루 전체)", "모든 화면"],
         ["2024-11-02 ~ 2025-10-30", "하루 평균에 쓰는 날 (363일, 올해와 같은 기준으로 맞춤)", "월·요일·시간대 하루 평균, 날씨 비교"],
         ["2025-10-31", "마지막 신규 접수 = 재접수를 지켜볼 수 있는 끝 (올해 파일은 쓰지 않음)", "종결 후 재접수율"],
@@ -1277,14 +1401,20 @@
   // year selector (header) and the header line for the shown year
   (function yearUi() {
     const lede = document.querySelector(".lede");
-    if (lede) lede.innerHTML = `${esc(YR.label)}${PREV ? " (지난해)" : ""} · 기본 분석 대상 신고 ${fmtN(D.ref.eda_overview.rows_base)}건 · 실제 사건이 아닌 <b>접수된 신고 기록</b>입니다`;
+    if (lede) lede.innerHTML = `${esc(YR.label)}${PREV ? " (지난해)" : BOTH ? " (두 해 합쳐 보기)" : ""} · 기본 분석 대상 신고 ${fmtN(D.ref.eda_overview.rows_base)}건 · 실제 사건이 아닌 <b>접수된 신고 기록</b>입니다`;
     const bar = document.querySelector(".helpbar");
-    if (bar && YR.hasPrev && !$("f-y")) {
+    if (bar && (YR.hasPrev || YR.hasBoth) && !$("f-y")) {
       const lab = document.createElement("label"); lab.className = "yearsel";
-      lab.innerHTML = `<span>기준 연도</span><select id="f-y" aria-label="기준 연도"><option value="cur">올해 2025-11 ~ 2026-10</option><option value="prev">지난해 2024-11 ~ 2025-10</option></select>`;
+      lab.innerHTML = `<span>기준 연도</span><select id="f-y" aria-label="기준 연도"><option value="cur">올해 2025-11 ~ 2026-10</option><option value="prev">지난해 2024-11 ~ 2025-10</option>${YR.hasBoth ? '<option value="both">두 해 합쳐 보기 2024-11 ~ 2026-10</option>' : ""}</select>`;
       bar.insertBefore(lab, bar.firstChild);
       $("f-y").value = YR.key;
       $("f-y").addEventListener("change", e => { if (e.target.value !== YR.key) switchYear(e.target.value); });
+    }
+    if (BOTH) {
+      document.body.classList.add("year-prev");
+      const note = document.createElement("div"); note.className = "yearnote wrap";
+      note.innerHTML = `<b>두 해 합쳐 보기</b> · 2024-11 ~ 2026-10의 24개월입니다. 건수·구성·월별·일별·주소 순위·처리 시간은 두 해 신고를 합쳐 다시 계산했고, 각 해는 자기 기준(하루 전체가 있는 날 11-02 ~ 10-30, 관찰 마감 11-11)을 그대로 씁니다. 날씨·급증과 지연·재접수·건물·장소·반복 주소 같은 분석 카드는 두 해를 섞지 않고 <b>연도별 값을 나란히</b> 보여 줍니다. 올해 결과로 쓴 해석 문장은 숨겼습니다.`;
+      const hdr = document.querySelector("header.top"); if (hdr) hdr.appendChild(note);
     }
     if (PREV) {
       document.body.classList.add("year-prev");
