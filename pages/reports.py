@@ -97,7 +97,8 @@ st.query_params["r"] = name
 
 
 def link(n):
-    return f"[{TITLES.get(n, n)}](?r={n})"
+    # same-tab link: Streamlit opens markdown links in a new tab
+    return f'<a href="?r={n}" target="_self">{TITLES.get(n, n)}</a>'
 
 
 def row(n, line):
@@ -114,10 +115,10 @@ if name == "index":
         st.subheader(title)
         st.caption(sub)
         if items:
-            st.markdown(head + "\n".join(row(n, l) for n, l in items))
+            st.markdown(head + "\n".join(row(n, l) for n, l in items), unsafe_allow_html=True)
     for title, items in EVIDENCE:
         st.markdown(f"**{title}**")
-        st.markdown(head + "\n".join(row(n, l) for n, l in items))
+        st.markdown(head + "\n".join(row(n, l) for n, l in items), unsafe_allow_html=True)
     st.caption("신고는 실제 사건이 아니라 접수된 기록입니다. 종료 기록은 해결의 증거가 아니고, 재접수는 해결 실패가 아닙니다.")
     st.page_link("streamlit_app.py", label="← 대시보드로 돌아가기")
     st.stop()
@@ -196,7 +197,7 @@ def render(lines):
 
 body, repro, log = split_work((REP / f"{name}.md").read_text(encoding="utf-8").splitlines())
 if UPDATED.get(name):
-    st.caption(f"최종 갱신 {UPDATED[name]} · [목차로](?r=index)")
+    st.caption(f'최종 갱신 {UPDATED[name]} · <a href="?r=index" target="_self">목차로</a>', unsafe_allow_html=True)
 render(body)
 if repro:
     with st.expander("재현 정보 (스크립트·결과 파일·실행 방법)"):
