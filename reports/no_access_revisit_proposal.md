@@ -120,12 +120,8 @@
 4. **맞춘 비교는 재접수율만 했다.** 「다음 신고의 종결 문구」와 생존 분석 기준값은 단순 비교다.
 5. **비용은 추정하지 않았다.** 재방문 1건의 인력과 시간 자료가 없다.
 
----
+## 재현 정보와 수정 이력
 
-<details><summary>재현 정보와 수정 이력</summary>
-
-- 계산: `scripts/proposal/no_access_revisit.py` (결과 `reports/proposal/no_access/`), 맞춘 재접수 비교: `scripts/rereport/rereport_survival_analysis.py`
+- **스크립트**: `scripts/proposal/no_access_revisit.py` (결과 `reports/proposal/no_access/`), 맞춘 재접수 비교: `scripts/rereport/rereport_survival_analysis.py`
 - 2026-11-28 처음 작성.
 - 2026-11-28 수정: 재접수율 분모를 「그 기간을 끝까지 지켜볼 수 있는 종결」로 고쳤다(처음에는 모든 종결로 나눠 비율이 0.1~2%p 낮았음. 예: 올해 7일 56.5% → 57.2%). 시범 설계를 주소 단위 배정, 생존 분석 주 지표, 다음 날 재방문, 제안 1 대상 제외로 바꾸고 기준값과 규모를 계산했다. 바뀌기 전: `backup/20261128_before_review2/`.
-
-</details>
