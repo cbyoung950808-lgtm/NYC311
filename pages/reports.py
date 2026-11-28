@@ -6,7 +6,8 @@ import streamlit as st
 
 REP = Path(__file__).resolve().parents[1] / "reports"
 TITLES = {
-    "heat_priority_proposal": "제안: 지난 신고 기록으로 난방 시즌 전 선제 점검 목록 만들기",
+    "heat_priority_proposal": "제안 1: 지난 신고 기록으로 난방 시즌 전 선제 점검 목록 만들기",
+    "no_access_revisit_proposal": "제안 2: 「출입 실패」로 닫힌 난방 신고를 빨리 다시 방문하기",
     "false_report_feasibility_review": "타당성 검토: 허위·오류 가능 신고 검토 업무",
     "events_report": "행사와 신고 증가: 지역·시간별 비교",
     "eda_report": "탐색적 데이터 분석(EDA) 보고서",
