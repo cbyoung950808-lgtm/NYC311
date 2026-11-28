@@ -89,36 +89,48 @@ ORDER = [n for _, _, items in GROUPS for n, _ in items] + [n for _, items in EVI
 names = ["index"] + [n for n in ORDER if (REP / f"{n}.md").exists()] + [n for n in TITLES if n not in ORDER and (REP / f"{n}.md").exists()]
 label = lambda n: "목차: 보고서 한눈에 보기" if n == "index" else TITLES.get(n, n)
 want = st.query_params.get("r", "index")
-idx = names.index(want) if want in names else 0
 if want not in names:
     st.warning(f"요청한 보고서({want})를 찾지 못해 목차를 보여 줍니다.")
-name = st.selectbox("보고서", names, index=idx, format_func=label)
+    want = "index"
+# the selection lives in session state; buttons change it through a callback (links cannot move the page on the
+# hosted app: a link in markdown opens a new tab, and a same-tab link is blocked by the hosting frame)
+if "rep" not in st.session_state or st.session_state.get("_seen") != want:   # first visit, or a new ?r= link
+    st.session_state["rep"] = want
+
+
+def go(n):
+    st.session_state["rep"] = n
+
+
+name = st.selectbox("보고서", names, key="rep", format_func=label)
 st.query_params["r"] = name
-
-
-def link(n):
-    # same-tab link: Streamlit opens markdown links in a new tab
-    return f'<a href="?r={n}" target="_self">{TITLES.get(n, n)}</a>'
-
-
-def row(n, line):
-    d = UPDATED.get(n, "")
-    return f"| {link(n)} | {line} | {d} |"
+st.session_state["_seen"] = name
 
 
 if name == "index":
     st.title("분석 보고서")
     st.markdown("뉴욕시 311 신고 두 해치(2024-11 ~ 2026-10)를 분석한 보고서입니다. **제안 → 타당성 검토 → 근거** 순서로 읽으면 됩니다. "
                 "보고서 이름을 누르면 열립니다. 각 보고서의 실행 방법과 수정 이력은 본문 끝 접힌 칸에 있습니다.")
-    head = "| 보고서 | 한 줄 결론 | 최종 갱신 |\n|---|---|---|\n"
+    W = [3, 6, 1.3]
+
+    def table_rows(items):
+        h = st.columns(W)
+        for c, t in zip(h, ["보고서", "한 줄 결론", "최종 갱신"]):
+            c.caption(f"**{t}**")
+        for n, line in items:
+            c1, c2, c3 = st.columns(W)
+            c1.button(TITLES.get(n, n), key=f"go-{n}", on_click=go, args=(n,), type="tertiary")
+            c2.markdown(line)
+            c3.caption(UPDATED.get(n, ""))
+        st.divider()
     for title, sub, items in GROUPS:
         st.subheader(title)
         st.caption(sub)
         if items:
-            st.markdown(head + "\n".join(row(n, l) for n, l in items), unsafe_allow_html=True)
+            table_rows(items)
     for title, items in EVIDENCE:
         st.markdown(f"**{title}**")
-        st.markdown(head + "\n".join(row(n, l) for n, l in items), unsafe_allow_html=True)
+        table_rows(items)
     st.caption("신고는 실제 사건이 아니라 접수된 기록입니다. 종료 기록은 해결의 증거가 아니고, 재접수는 해결 실패가 아닙니다.")
     st.page_link("streamlit_app.py", label="← 대시보드로 돌아가기")
     st.stop()
@@ -196,8 +208,9 @@ def render(lines):
 
 
 body, repro, log = split_work((REP / f"{name}.md").read_text(encoding="utf-8").splitlines())
+st.button("← 목차로", key="to-index", on_click=go, args=("index",), type="tertiary")
 if UPDATED.get(name):
-    st.caption(f'최종 갱신 {UPDATED[name]} · <a href="?r=index" target="_self">목차로</a>', unsafe_allow_html=True)
+    st.caption(f"최종 갱신 {UPDATED[name]}")
 render(body)
 if repro:
     with st.expander("재현 정보 (스크립트·결과 파일·실행 방법)"):
