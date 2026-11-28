@@ -2,12 +2,12 @@
  "eda_report": "2026-11-28",
  "composition_report": "2026-11-28",
  "repeat_address_report": "2026-11-23",
- "resolution_playbook_report": "2026-11-26",
+ "resolution_playbook_report": "2026-11-28",
  "monthly_composition_report": "2026-11-28",
  "rereport_report": "2026-11-28",
  "reclass_check_report": "2026-11-25",
  "weather_report": "2026-11-28",
- "surge_delay_report": "2026-11-26",
+ "surge_delay_report": "2026-11-28",
  "heat_record_change_report": "2026-11-26",
  "building_report": "2026-11-28",
  "poi_report": "2026-11-26",
@@ -20,5 +20,6 @@
  "population_report": "2026-11-22",
  "heat_priority_proposal": "2026-11-28",
  "no_access_revisit_proposal": "2026-11-28",
- "false_report_feasibility_review": "2026-11-28"
+ "false_report_feasibility_review": "2026-11-28",
+ "events_report": "2026-11-26"
 }

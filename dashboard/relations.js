@@ -235,7 +235,7 @@
 
       <h3 class="block-h"><span class="bn">예시 3</span>극단값: 주소 한 곳이 지역의 군집을 바꿉니다</h3>
       <div class="card readbox">
-        <p>${tag.f}브롱크스 12번 커뮤니티 보드는 집중 주소(655 EAST 230 STREET)를 포함하면 <b>군집 ${lblA + 1}</b>(${esc(namesFor(R.cb.all, kD)[lblA])}), 제외하면 <b>군집 ${lblN + 1}</b>(${esc(namesFor(R.cb.no_focus, kD)[lblN])})에 들어갑니다(k = ${kD}).</p>
+        <p>${tag.f}브롱크스 12번 커뮤니티 보드는 집중 주소(브롱크스 집중 주소)를 포함하면 <b>군집 ${lblA + 1}</b>(${esc(namesFor(R.cb.all, kD)[lblA])}), 제외하면 <b>군집 ${lblN + 1}</b>(${esc(namesFor(R.cb.no_focus, kD)[lblN])})에 들어갑니다(k = ${kD}).</p>
         <p>${tag.f}이 지역에서 최다 주소 비중은 포함 시 ${cbA.values.top_addr_pct[idx12].toFixed(1)}%, 제외 시 ${R.cb.no_focus.values.top_addr_pct[idx12].toFixed(1)}%입니다.</p>
         <p>${tag.c}군집이나 상관을 볼 때는 극단값을 넣고 뺀 결과를 함께 봐야 합니다. 「③ 군집」에서 집중 주소 포함·제외를 바꿔 직접 확인할 수 있습니다.</p>
         <p class="note">주의: 군집 번호는 이름표일 뿐입니다. 지역 군집은 구조가 약해(${window.YEAR && window.YEAR.key !== "cur" ? "올해 기준 " : ""}실루엣 약 0.26) 경계 근처의 지역은 작은 변화에도 다른 묶음으로 갑니다. 군집이 바뀌었다는 사실만으로 그 지역의 특성이 바뀌었다고 말할 수 없고, 위의 최다 주소 비중처럼 실제로 달라진 지표를 함께 봐야 합니다.</p>

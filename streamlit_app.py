@@ -50,6 +50,8 @@ page = build_page(files_stamp())
 state = st.query_params.get("s", "")
 boot = f"<script>window.STREAMLIT_EMBED = true; window.INITIAL_STATE = {json.dumps(state)};</script>"
 page = page.replace("<head>", "<head>" + boot, 1)
+# the host page Streamlit builds says lang="en"; mark it Korean where the browser allows it (2026-11-28)
+components.html("<script>try{window.parent.document.documentElement.lang='ko'}catch(e){}</script>", height=0)
 components.html(page, height=1180, scrolling=True)
 st.caption("데이터: NYC Open Data 311 Service Requests (2024-11 ~ 2026-10, 위쪽 「기준 연도」로 선택) 집계본 · 원자료는 포함하지 않습니다 · "
            "[분석 보고서 보기](reports)")

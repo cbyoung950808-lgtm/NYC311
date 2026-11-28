@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 REP = Path(__file__).resolve().parents[1] / "reports"
 TITLES = {
@@ -69,7 +70,7 @@ EVIDENCE = [
         ("spike_events_review", "급증일의 대부분은 날씨와 겹쳤고, 행사 카드의 사례는 결과를 본 뒤 고른 것이라는 약점을 밝혔습니다."),
     ]),
     ("종료 기록과 재접수", [
-        ("resolution_playbook_report", "자치구 처리 시간 차이는 대부분 업무 구성 차이입니다(브롱크스 11.3 vs 7.2시간 → 맞추면 8.6 vs 8.3시간)."),
+        ("resolution_playbook_report", "올해 자치구 처리 시간 차이는 대부분 업무 구성 차이입니다(브롱크스 11.3 vs 7.2시간 → 맞추면 8.6 vs 8.3시간). 지난해 절반 시점은 맞춘 뒤에도 차이가 남았습니다."),
         ("rereport_report", "종결 뒤 7일 안에 약 3분의 1이 다시 접수되고, 중복 종결 뒤에 가장 많습니다(난방 출입 실패 결론은 2026-11-28 철회)."),
         ("heat_record_change_report", "2026-01-24부터 HPD가 난방 신고 일부를 열어 두는 기록이 다시 많아져, 7일 지표가 그 시점에 바뀌었습니다."),
     ]),
@@ -80,6 +81,8 @@ EVIDENCE = [
     ]),
 ]
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
+# the host page Streamlit builds says lang="en"; mark it Korean where the browser allows it (2026-11-28)
+components.html("<script>try{window.parent.document.documentElement.lang='ko'}catch(e){}</script>", height=0)
 # short names for the contents buttons (button text does not wrap); the full title shows on hover
 SHORT = {
     "heat_priority_proposal": "제안 1: 선제 점검", "no_access_revisit_proposal": "제안 2: 출입 실패 마무리",
