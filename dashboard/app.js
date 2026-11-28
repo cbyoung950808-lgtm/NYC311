@@ -25,6 +25,7 @@
   const FOCUS_B = B.indexOf(D.focus.borough), FOCUS_K = D.focus.address_key;
   const AG = {}; D.agencies.agencies.forEach(x => { AG[x.code] = x; });
   const BKO = { "BRONX": "브롱크스", "BROOKLYN": "브루클린", "MANHATTAN": "맨해튼", "QUEENS": "퀸스", "STATEN ISLAND": "스태튼아일랜드", "(미상)": "자치구 미상" };
+  const eunNeun = w => { const c = (w || "").charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? "은" : "는"; };
   const BAB = { "BRONX": "BX", "BROOKLYN": "BK", "MANHATTAN": "MN", "QUEENS": "QN", "STATEN ISLAND": "SI" };
   const UNK = B.indexOf("(미상)");
   const KB = B.map((_, i) => i).filter(i => i !== UNK);       // known boroughs
@@ -317,7 +318,7 @@
     const best = at("days", PROP_N), vol = at("volume", PROP_N), rnd = at("random", PROP_N);
     const order = ["days", "volume", "months", "days_viol", "per_unit", "three", "random"];
     const SHORT = { days: "신고가 있었던 날 많은 순", volume: "신고 건수 많은 순", months: "신고가 있었던 달 많은 순", days_viol: "위반 필지 먼저 + 신고일 순",
-      per_unit: "세대 대비 신고일 순", three: "평가서의 세 조건", random: "무작위 (200번 평균)" };
+      per_unit: "세대 대비 신고일 순", three: "세 조건 결합 (10일 반복·세대 대비 상위 10%·위반 기록)", random: "무작위 (200번 평균)" };
     const items = order.map(k => at(k, PROP_N)).filter(Boolean).map(r => ({ label: SHORT[r.rule] || r.label, value: r.share_days * 100,
       valueText: `${pc(r.share_days)}${r.buildings < PROP_N ? ` (${fmtN(r.buildings)}곳)` : ""}`, color: r.rule === "days" ? "var(--s1)" : r.rule === "random" ? GRAY : "#9db9e0", hl: r.rule === "days",
       tip: `<b>${esc(r.label)}</b><br>${fmtN(r.buildings)}곳 · 시즌 난방 신고일 ${pc(r.share_days)} · 신고 건수 ${pc(r.share_req)} · HPD 위반 ${pc(r.share_viol)}<br>목록 중 시즌에 10일+ 신고 ${pc(r.hit10)}` }));
@@ -335,10 +336,10 @@
         <div class="kpi"><div class="lab">시즌에도 반복된 필지</div><div class="val">${pc(best.hit10)}</div><div class="sub">목록 필지 중 그 시즌에 10일 이상 신고된 비율 · 약 ${(best.units / 10000).toFixed(1)}만 세대</div></div></div>` +
         nSel + `<h4 class="minih">목록을 만드는 방법에 따라 그 시즌 난방 신고일을 얼마나 미리 짚었나</h4>` +
         hbars(items, { w: wOf("home-proposal") - 40, labelW: 250, valW: 120, aria: "목록 규칙별 포괄 비율" }) +
-        details("규칙별 자세한 값", tbl + `<p class="note">분모: 시즌 중 BBL이 있는 난방 신고의 필지·날짜 ${fmtN(PD.totals.days)}개(BBL 없는 신고 ${fmtN(PD.no_bbl_eval_requests)}건 제외). 직전 1년 신고가 있었던 필지 전체가 시즌 신고일의 ${pc(PD.ceiling.days)}를 차지했습니다(어떤 목록도 이보다 높을 수 없음). 평가서의 세 조건은 해당 필지가 ${fmtN(PD.three_all.buildings)}곳이고 ${pc(PD.three_all.share_days)}였습니다. 같은 수를 신고일 순으로 고르면 ${pc(PD.days_same_size.share_days)}입니다. 「HPD가 열어 둔 신고」 규칙은 그 문구가 목록 작성 시점에 보였는지 확인할 수 없어 비교에서 뺐습니다.</p>`) +
+        details("규칙별 자세한 값", tbl + `<p class="note">분모: 시즌 중 BBL이 있는 난방 신고의 필지·날짜 ${fmtN(PD.totals.days)}개(BBL 없는 신고 ${fmtN(PD.no_bbl_eval_requests)}건 제외). 직전 1년 신고가 있었던 필지 전체가 시즌 신고일의 ${pc(PD.ceiling.days)}를 차지했습니다(어떤 목록도 이보다 높을 수 없음). 세 조건(10일 반복·세대 대비 상위 10%·위반 기록)을 모두 만족하는 필지는 ${fmtN(PD.three_all.buildings)}곳이고 ${pc(PD.three_all.share_days)}였습니다. 같은 수를 신고일 순으로 고르면 ${pc(PD.days_same_size.share_days)}입니다. 「HPD가 열어 둔 신고」 규칙은 그 문구가 목록 작성 시점에 보였는지 확인할 수 없어 비교에서 뺐습니다.</p>`) +
         details("신고일 순 필지 1,000곳 목록의 모습 (주소는 싣지 않음)", table(["자치구", "필지", "세대"], PD.by_borough.map(r => [esc(BKO2(r)), fmtN(r.buildings), fmtN(r.units)]), { num: [1, 2] }) +
           `<p class="note">필지(BBL)는 건물 하나와 같지 않습니다. 이 목록에는 200세대 이상 필지 ${fmtN(PD.lots_200plus_units_in_list)}곳(여러 동일 수 있음)과 콘도 대표 필지로 보이는 ${fmtN(PD.condo_billing_lots_in_list)}곳이 있습니다. 실제 점검 건수·비용은 추정하지 않았습니다.</p>`),
-      read: `${T.f}직전 1년의 신고 이력으로 만든 규칙(신고일 순 ${pc(best.share_days)}, 신고 건수 순 ${pc(vol.share_days)})은 비슷한 수준으로 무작위의 약 ${Math.round(best.share_days / rnd.share_days)}배였습니다. 두 규칙의 대략적인 범위(${rrTxt("days")}, ${rrTxt("volume")})가 겹쳐 어느 쪽이 낫다고 말할 수 없고, 한 시즌만 비교했습니다. 신고일 순은 같은 날 여러 건을 하루로 세어 몰아치기 접수의 영향을 줄이려고 고른 방식입니다. 평가서가 권장한 세 조건 목록은 이보다 낮았습니다. ${T.m}난방 문제는 보일러·배관처럼 건물에 붙은 원인이 많아 같은 곳에서 반복되는 것으로 보입니다(원인은 확인하지 않음). ${T.w}이 비율은 목록에 들어간 비중이지 문제 감소 효과가 아니며, 선제 점검의 효과는 검증하지 않았습니다. 시즌 신고일의 약 ${Math.round(newShare * 100)}%는 직전 1년 신고가 없던 필지에서 나와 목록으로 못 잡고, 덜 신고하는 곳과 311에 거의 없는 공공임대주택(NYCHA)은 빠집니다. 건물주·기관 평가가 아닙니다.`,
+      read: `${T.f}직전 1년의 신고 이력으로 만든 규칙(신고일 순 ${pc(best.share_days)}, 신고 건수 순 ${pc(vol.share_days)})은 비슷한 수준으로 무작위의 약 ${Math.round(best.share_days / rnd.share_days)}배였습니다. 두 규칙의 대략적인 범위(${rrTxt("days")}, ${rrTxt("volume")})가 겹쳐 어느 쪽이 낫다고 말할 수 없고, 한 시즌만 비교했습니다. 신고일 순은 같은 날 여러 건을 하루로 세어 몰아치기 접수의 영향을 줄이려고 고른 방식입니다. 세 조건을 모두 만족하는 목록은 이보다 낮았습니다. ${T.m}난방 문제는 보일러·배관처럼 건물에 붙은 원인이 많아 같은 곳에서 반복되는 것으로 보입니다(원인은 확인하지 않음). ${T.w}이 비율은 목록에 들어간 비중이지 문제 감소 효과가 아니며, 선제 점검의 효과는 검증하지 않았습니다. 시즌 신고일의 약 ${Math.round(newShare * 100)}%는 직전 1년 신고가 없던 필지에서 나와 목록으로 못 잡고, 덜 신고하는 곳과 311에 거의 없는 공공임대주택(NYCHA)은 빠집니다. 건물주·기관 평가가 아닙니다.`,
       more: `시간 기준: 목록 작성일 2025-09-30(난방 시즌 전날). 선정 자료 = 2024-11-01 ~ 2025-09-30 신고와 그 기간 점검일의 HPD 위반. 평가 = 2025-10-01 ~ 2026-05-31 난방 시즌(10월은 지난해 파일, 11~5월은 올해 파일). 주 지표 = 시즌 중 난방 신고가 있었던 필지·날짜 중 목록 필지의 비중(같은 날 여러 건은 1). HPD 위반 = 같은 시즌 점검일의 난방·온수 위반(신고 없던 필지 포함). 무작위 = 같은 수를 200번 뽑은 평균. 대략적인 범위 = 시즌 필지를 다시 뽑아(300번) 목록은 그대로 두고 계산한 2.5~97.5% 구간으로, 다른 해의 결과를 보장하지 않습니다. 세대 수는 현재 PLUTO 값. 자세한 내용: <a href="../reports/heat_priority_proposal.md" target="_blank">제안 보고서</a>` });
   }
   function renderHome() {
@@ -379,10 +380,10 @@
         lim: "지난해에도 난방은 1월에 몰렸지만, 포트홀 3월 집중(지난해 11%, 올해 30%)과 눈·얼음 급증의 크기는 올해가 특별했습니다(아래 「지난해에도 반복되나요?」). 날씨와 신고가 함께 움직였다는 관찰이며, 관측소 1곳의 날씨로 뉴욕시 전체를 대신했습니다." },
       { v: "time", s: {}, t: pbOK ? "처리 시간의 자치구 차이는 대부분 「어떤 업무가 많은가」의 차이입니다" : "처리 시간 비교는 같은 업무끼리 해야 합니다",
         fact: pbOK ? (() => { const g = Object.fromEntries(L1.map(x => [x.borough, x]));
-          const f = (b) => `${BKO[b]}은 단순 비교에서 ${g[b].raw_t.toFixed(1)}시간 vs 나머지 네 곳 ${g[b].raw_o.toFixed(1)}시간이지만, 비슷한 업무끼리 맞추면 ${g[b].adj_t_main.toFixed(1)} vs ${g[b].adj_o_main.toFixed(1)}시간입니다`;
+          const f = (b) => `${BKO[b]}${eunNeun(BKO[b])} 단순 비교에서 ${g[b].raw_t.toFixed(1)}시간 vs 나머지 네 곳 ${g[b].raw_o.toFixed(1)}시간이지만, 비슷한 업무끼리 맞추면 ${g[b].adj_t_main.toFixed(1)} vs ${g[b].adj_o_main.toFixed(1)}시간입니다`;
           return `절반의 신고가 종료 기록에 도달한 시간을 비교했습니다. ${f("BRONX")}. ${f("MANHATTAN")}. 민원 유형·세부 유형·접수 월·기관이 같은 업무끼리 맞추면 차이가 크게 줄거나 방향이 바뀝니다.`; })()
           : "자치구마다 맡는 민원이 달라, 전체 값만 비교하면 업무 구성 차이가 섞입니다.",
-        lim: "맞춘 비교도 지역의 순수한 영향이나 기관의 성과를 뜻하지 않습니다. 「종료 기록」은 실제 해결·수리 완료의 증거가 아닙니다. 지난해 자료에서도 같은 업무끼리 맞추면 자치구 차이가 대부분 1%p 안팎으로 줄었습니다." },
+        lim: "맞춘 비교도 지역의 순수한 영향이나 기관의 성과를 뜻하지 않습니다. 「종료 기록」은 실제 해결·수리 완료의 증거가 아닙니다. 지난해(2024-11 ~ 2025-10)에는 결과가 반만 같았습니다. 「7일 안에 종료 기록 없음」 비율은 맞추면 차이가 ±1%p 안팎으로 줄었지만, 절반 시점은 맞춘 뒤에도 브롱크스 9.2시간 vs 나머지 5.2시간(약 1.75배)이었습니다. 이 차이는 주로 경찰 신고에서, 2024-11 ~ 2025-04에 컸고 2025-06부터 줄었습니다(보고서 「대시보드 지난해 화면」 4-1절). 왜 줄었는지는 확인하지 못했습니다." },
     ].concat(BDb ? [{ v: "places", s: {}, t: "세대 수로 나눠도 브롱크스의 난방 신고가 가장 많습니다",
         fact: `모든 주거 세대 1,000곳당 난방 신고가 있었던 날은 브롱크스 ${Math.round(BDb.BRONX)}일, 브루클린 ${Math.round(BDb.BROOKLYN)}일, 맨해튼 ${Math.round(BDb.MANHATTAN)}일, 퀸스 ${Math.round(BDb.QUEENS)}일입니다. 20~99세대 건물과 1946년 이전 건물에서 많고, 1년에 10일 이상 신고가 반복된 건물(15%)이 난방 신고의 71%를 차지합니다. 지난해에도 세대 대비 상위 5개 세부 지역(브롱크스 7·4·5, 맨해튼 10·12)이 같았습니다.`,
         lim: "세대 수는 현재 시점의 건물 정보(PLUTO)입니다. 신고가 많다고 건물 상태가 나쁘다고 확정할 수 없고, 건물주·기관 평가가 아닙니다." }] : []);
@@ -489,7 +490,7 @@
       meta: meta(esc(unit), "다섯 구간(같은 수의 지역씩)", `${MAP_M === "renter" ? "2020년 인구조사 (위 조건 미적용)" : MAP_M === "heat" ? `${YR.label} 1년 고정값 · 위 유형·기관·기간·집중 주소 조건 미적용 · PLUTO 커뮤니티 디스트릭트 기준` : `${YR.label} · ${st.m >= 0 ? mLabel(st.m) : "전체 기간"}${st.x ? " · 집중 주소 제외" : ""} · 311 신고의 세부 지역 값 기준`}`),
       body: sel + legendHtml + `<svg class="chart cdmap" viewBox="0 0 ${vw} ${vh}" role="img" aria-label="세부 지역 지도">${svg}</svg>` +
         details("59곳 값 모두 보기 (높은 순)", table(["세부 지역", "값", "임차 가구", "2020 인구"], ranked.map(k => ({ cls: st.cd >= 0 && CBS[st.cd] === k ? "hlrow" : "", attr: ` data-setcd="${CBS.indexOf(k)}"`, cells: [esc(lab(k)), fmtV(val[k]), `${CEN[k] ? CEN[k].renter_pct : "-"}%`, CEN[k] ? fmtN(CEN[k].pop) : "-"] })), { num: [1, 2, 3] })) + pair,
-      read: ranked.length ? `${T.f}가장 높은 곳은 ${ranked.slice(0, 3).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}, 가장 낮은 곳은 ${ranked.slice(-2).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}입니다. ${T.w}색은 순위에 따른 구간이라 차이의 크기를 그대로 나타내지 않습니다. 지역 평가나 순위 매김이 아닙니다.` : "",
+      read: ranked.length ? `${T.f}가장 높은 곳은 ${ranked.slice(0, 3).map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}, 가장 낮은 곳은 ${ranked.slice(-2).reverse().map(k => `${lab(k)}(${fmtV(val[k])})`).join(", ")}입니다. ${T.w}색은 순위에 따른 구간이라 차이의 크기를 그대로 나타내지 않습니다. 지역 평가나 순위 매김이 아닙니다.` : "",
       more: `경계: 뉴욕시 도시계획국(DCP) 커뮤니티 디스트릭트(NYC Open Data 5crt-au7u), 화면용으로 단순화. 인구·임차 가구: 2020년 인구조사(DHC, 전수) DCP 집계. 311 신고는 자료의 커뮤니티 보드 값으로 나눴고 좌표로 다시 배정하지 않았습니다(표준 59곳에 연결된 신고만). 공원·공항 같은 공동 관리 구역(JIA)은 회색. 자세한 인구 대비 분석: <a href="../reports/population_report.md" target="_blank">인구 대비 보고서</a>` });
   }
   function renderWhere() {
@@ -663,18 +664,18 @@
     const path = arr => arr.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v || 0).toFixed(1)}`).join("");
     svg += `<path d="${path(usual)}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 3"/><path d="${path(cnt)}" fill="none" stroke="var(--s1)" stroke-width="1.6"/>`;
     D.date.forEach((d, i) => { const evs = Object.keys(EV).filter(e => D.events[e][i]).map(evLab);
-      svg += `<rect class="hit" x="${(X(i) - pw / n / 2).toFixed(1)}" y="${Tp}" width="${(pw / n).toFixed(2)}" height="${ph}" fill="transparent" data-tip="${esc(`<b>${d}</b><br>신고 ${fmtN(cnt[i])}건 · 평소 ${fmtN(Math.round(usual[i] || 0))}건<br>최고 ${D.tmax[i]}°C · 최저 ${D.tmin[i]}°C · 비 ${D.prcp[i]}mm · 눈 ${D.snow[i]}mm${evs.length ? "<br>" + evs.join(", ") : ""}`)}"/>`; });
+      svg += `<rect class="hit" x="${(X(i) - pw / n / 2).toFixed(1)}" y="${Tp}" width="${(pw / n).toFixed(2)}" height="${ph}" fill="transparent" data-tip="${esc(`<b>${d}</b><br>신고 ${fmtN(cnt[i])}건 · 평소 ${fmtN(Math.round(usual[i] || 0))}건<br>최고 ${D.tmax[i]}°C · 최저 ${D.tmin[i]}°C · 강수(녹은 눈 포함) ${D.prcp[i]}mm · 새로 내린 눈 ${D.snow[i]}mm${evs.length ? "<br>" + evs.join(", ") : ""}`)}"/>`; });
     const chart = `<div class="legend"><span><i style="background:var(--s1)"></i>하루 신고 수</span><span><i style="background:var(--muted)"></i>평소 수준 (같은 달·같은 요일 중앙값, 점선)</span>${G.related.map(e => `<span><i style="background:${WX_COL[e]}"></i>${esc(evLab(e))}</span>`).join("")}<span>세로축: 로그 눈금</span></div>` +
       `<svg class="chart" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="하루 신고 수와 날씨 사건">${svg}</svg>`;
     const cmp = W.compare.filter(r => r.group === g).sort((a, b) => (b.related - a.related) || (b.rel_main - a.rel_main));
     const fx = v => `×${v >= 10 ? v.toFixed(0) : v.toFixed(2)}`;
-    const tbl = table(["날씨 사건", "사건 날 수", "평소 대비 (사건 기간 ÷ 같은 달 다른 날)", "가장 큰 하루 제외", "집중 주소 제외", "판정"],
+    const tbl = table(["날씨 사건", "비교 기간 날 수", "평소 대비 (사건 기간 ÷ 같은 달 다른 날)", "가장 큰 하루 제외", "집중 주소 제외", "판정"],
       cmp.map(r => ({ cls: r.related ? "hlrow" : "", cells: [esc(r.event_label) + (r.related ? "" : " <small>(참고)</small>"), fmtN(r.event_days), `<b>${fx(r.rel_main)}</b>`, fx(r.rel_drop_max), fx(r.rel_no_focus), esc(r.status)] })), { num: [1, 2, 3, 4] });
     const clo = W.closure.filter(r => r.group === g);
     const cloT = clo.length ? details("날씨 사건 때 종료 기록이 늦어졌나요? (단순 비교)", table(["날씨 사건", "사건 기간 접수", "7일 안에 종료 기록 없음: 사건 기간", "같은 달 다른 날"],
       clo.map(r => [esc(r.event_label), fmtN(r.n_event), `${r.open7_event_pct.toFixed(1)}%`, `${r.open7_other_pct.toFixed(1)}%`]), { num: [1, 2, 3] }) + `<p class="note">세부 유형·지역을 맞추지 않은 단순 비교입니다. 관찰 마감 ${YR.obs} 가정.</p>`) : "";
     const top = W.top.filter(r => r.group === g);
-    const topT = details("신고가 평소보다 가장 많았던 5일과 그날 날씨", table(["날짜", "신고 (평소)", "눈 (전날)", "쌓인 눈", "비 (전날)", "최고 / 최저", "날씨 사건"],
+    const topT = details("신고가 평소보다 가장 많았던 5일과 그날 날씨", table(["날짜", "신고 (평소)", "눈 (전날)", "쌓인 눈", "강수·녹은 눈 포함 (전날)", "최고 / 최저", "날씨 사건"],
       top.map(r => [`${r.date} (${r.dow})`, `${fmtN(r.n)} (${fmtN(Math.round(r.usual))})`, `${r.snow_mm} (${r.snow_prev_mm})mm`, `${r.snow_depth_mm ?? "-"}mm`, `${r.prcp_mm} (${r.prcp_prev_mm})mm`, `${r.tmax} / ${r.tmin}°C`, esc(r.events || "-")]), { num: [1] }));
     const sel = `<label class="tgl">민원 묶음 <select id="wx-g">${W.groups.map(x => `<option value="${x.id}"${x.id === g ? " selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>`;
     // previous year: the sentence is built from that year's table (the fixed sentences below describe this year)
@@ -683,10 +684,10 @@
     const READ = PREV ? readPrev() : {
       snow_ice: `${T.f}눈이 온 날부터 2일 동안 평소의 약 14배, 혹한 때 약 12배였습니다.`,
       heat: `${T.f}최저 -7°C 이하인 날에는 평소의 약 1.9배였습니다. 10월 중순의 급증은 날씨 사건이 아니라 난방 시즌 시작 무렵입니다.`,
-      pothole: `${T.f}눈·추위·큰비가 온 날에는 오히려 평소보다 적었습니다(약 0.8배). 가장 많았던 날은 2월 폭설이 녹던 2/26~28입니다. ${T.m}3월 집중은 그날 날씨보다 겨울 뒤 한꺼번에 드러나는 모습에 가까워 보입니다(확인 안 됨).`,
+      pothole: `${T.f}눈·추위가 온 날에는 오히려 평소보다 적었습니다(약 0.8배). 큰비 때는 평소와 비슷했습니다. 가장 많았던 날은 2월 폭설이 녹던 2/26~28입니다. ${T.m}3월 집중은 그날 날씨보다 겨울 뒤 한꺼번에 드러나는 모습에 가까워 보입니다(확인 안 됨).`,
       hydrant: `${T.f}최고 32°C 이상인 날 평소의 약 3.4배였습니다. 단순 비교로는 이때 빨리 종료 기록이 남았지만, 즉시 종결되는 소화전 긴급 신고가 몰린 영향입니다. 세부 유형·자치구·월을 맞추면 신고가 몰릴 때 오히려 조금 늦어졌습니다(+3%p, surge_delay_report).`,
-      sewer_flood: `${T.f}비 25mm 이상인 날과 다음 날 평소의 약 2.6배였습니다.`,
-      tree: `${T.f}큰비 때 약 2.3배, 바람 센 날 약 2배였습니다. 2026-06-07처럼 센트럴파크에 큰비가 없었던 급증은 국지적 폭풍일 수 있습니다.`,
+      sewer_flood: `${T.f}큰비(강수 25mm 이상, 눈이 온 날 제외)가 온 날과 다음 날 평소의 약 3.2배였습니다.`,
+      tree: `${T.f}큰비 때 약 2.0배, 바람 센 날 약 2배였습니다. 2026-06-07처럼 센트럴파크에 큰비가 없었던 급증은 국지적 폭풍일 수 있습니다.`,
       noise_street: `${T.f}더운 날에도 차이가 작고(약 1.2배), 비·추위·바람 센 날에는 적었습니다.`,
       noise_res: `${T.f}어느 날씨에서도 평소와 비슷했습니다.`,
       all: `${T.f}전체 신고는 추운 날에만 약 1.3배였고, 다른 날씨에서는 평소와 비슷했습니다.` }[g];
@@ -695,7 +696,7 @@
       meta: meta("건 (로그 눈금), 배", "사건 기간 vs 같은 달의 다른 날", `뉴욕시 전체 · 하루 전체가 포함된 날 ${YR.first_full} ~ ${YR.last_full} · 날씨: NOAA 센트럴파크 관측소 1곳`),
       body: wxOverview(W) + sel + chart + tbl + cloT + topT,
       read: `${READ} ${T.w}관측소 1곳의 날씨로 뉴욕시 전체를 대신했고, 눈·비·바람·추위가 같은 날 겹친 경우가 많아 어느 날씨 때문인지 나눌 수 없습니다. 함께 움직였다는 관찰이지 원인이 아닙니다.`,
-      more: `날씨 사건: 눈 = 새로 내린 눈 25mm 이상(그날~2일 뒤), 큰비 = 강수 25mm 이상(그날~다음 날), 더운 날 = 최고 32°C 이상(그날), 추운 날 = 최저 -7°C 이하(그날~다음 날), 바람 센 날 = 하루 평균 풍속 상위 5%(${(+W.inputs.wind_top5_cut_ms).toFixed(1)} m/s 이상, 그날~다음 날). 하루 배율 = (신고+1) ÷ (평소+1), 평소 = 같은 달·같은 요일 중앙값. 판정: 기본·가장 큰 하루 제외·집중 주소 제외 모두 ×1.25 이상이면 「많음 (유지)」, 모두 ×0.8 이하이면 「적음 (유지)」. 「(참고)」 행은 관련이 적은 날씨로, 사건이 겹쳐서 생긴 차이일 수 있습니다. 자세한 내용: reports/weather_report.md` });
+      more: `날씨 사건: 눈 = 새로 내린 눈 25mm 이상(그날~2일 뒤), 큰비 = 강수 25mm 이상이고 새로 내린 눈 10mm 미만(그날~다음 날, NOAA 강수량에는 녹은 눈이 들어가므로 눈 온 날은 뺌, 2026-11-28 수정), 더운 날 = 최고 32°C 이상(그날), 추운 날 = 최저 -7°C 이하(그날~다음 날), 바람 센 날 = 하루 평균 풍속 상위 5%(${(+W.inputs.wind_top5_cut_ms).toFixed(1)} m/s 이상, 그날~다음 날). 「비교 기간 날 수」 = 사건이 있던 날과 그 뒤 비교 기간에 든 날의 수(예: 눈이 온 날 9일 → 그날~2일 뒤를 합쳐 20일). 하루 배율 = (신고+1) ÷ (평소+1), 평소 = 같은 달·같은 요일 중앙값. 판정: 기본·가장 큰 하루 제외·집중 주소 제외 모두 ×1.25 이상이면 「많음 (유지)」, 모두 ×0.8 이하이면 「적음 (유지)」. 「(참고)」 행은 관련이 적은 날씨로, 사건이 겹쳐서 생긴 차이일 수 있습니다. 자세한 내용: reports/weather_report.md` });
   }
   // ---------- two-year view: analysis cards shown side by side, not pooled (reports/year_dashboard_report.md) ----------
   function cmpCard(kind) {
@@ -1096,15 +1097,15 @@
     const st_ = table(["세대 수", "신고가 있었던 건물", "그 규모 건물 중", "모든 세대 1,000곳당 신고일", "", "위반 기록이 있는 비율"], BD.size.map(r => [esc(r.size_band), fmtN(r.buildings), pc(r.pct_buildings_with_complaint), `<b>${f0(r.report_days_per_1000_units_all)}</b>`, bar(r.report_days_per_1000_units_all, ms, "var(--s1)"), pc(r.with_viol_pct)]), { num: [1, 2, 3, 5] });
     const ma = Math.max(...BD.age.map(r => r.report_days_per_1000_units_all));
     const at = table(["준공", "신고가 있었던 건물", "모든 세대 1,000곳당 신고일", ""], BD.age.map(r => [esc(r.age_band), fmtN(r.buildings), `<b>${f0(r.report_days_per_1000_units_all)}</b>`, bar(r.report_days_per_1000_units_all, ma, "var(--s1)")]), { num: [1, 2] });
-    const vt = table(["1년 중 신고가 있었던 날", "건물", "난방·온수 위반 기록 있음", "", "HPD가 열어 둔 신고 있음"], BD.viol_by_days.map(r => [esc(r.rd_band), fmtN(r.buildings), `<b>${pc(r.with_viol_pct)}</b>`, bar(r.with_viol_pct, 100, "var(--s2)"), pc(r.with_left_open_pct)]), { num: [1, 2, 4] });
+    const vt = table(["1년 중 신고가 있었던 날", "필지", "난방·온수 위반 기록 있음", "", "HPD가 열어 둔 신고 있음"], BD.viol_by_days.map(r => [esc(r.rd_band), fmtN(r.buildings), `<b>${pc(r.with_viol_pct)}</b>`, bar(r.with_viol_pct, 100, "var(--s2)"), pc(r.with_left_open_pct)]), { num: [1, 2, 4] });
     const lab = c => [c.f_repeat ? "반복" : "", c.f_rate ? "세대 대비 상위" : "", c.f_viol ? "위반" : ""].filter(Boolean).join(" + ") || "셋 다 아님";
-    const ct = table(["조건 조합", "건물", "난방 신고 중 비중"], BD.combos.slice().sort((a, b) => b.requests_pct - a.requests_pct).map(c => ({ cls: c.f_repeat && c.f_rate && c.f_viol ? "hlrow" : "", cells: [esc(lab(c)), fmtN(c.buildings), `${c.requests_pct.toFixed(1)}%`] })), { num: [1, 2] });
+    const ct = table(["조건 조합", "필지", "난방 신고 중 비중"], BD.combos.slice().sort((a, b) => b.requests_pct - a.requests_pct).map(c => ({ cls: c.f_repeat && c.f_rate && c.f_viol ? "hlrow" : "", cells: [esc(lab(c)), fmtN(c.buildings), `${c.requests_pct.toFixed(1)}%`] })), { num: [1, 2] });
     const C = BD.concentration, S = BD.screening, fp = (BD.focus.pluto || [])[0];
-    const kp = [["난방 신고가 있었던 건물", fmtN(C.buildings), `상위 1%가 신고의 ${C.top1pct_share.toFixed(0)}%, 상위 10%가 ${C.top10pct_share.toFixed(0)}%`],
-      ["10일 이상 반복된 건물", `${C.repeated_ge10_pct.toFixed(0)}%`, `이 건물들이 신고의 ${C.requests_in_repeated_pct.toFixed(0)}%`],
-      ["세 조건을 모두 만족하는 건물", fmtN(S.all_three), `신고의 ${S.all_three_requests_pct.toFixed(0)}% · 맨해튼 ${S.by_borough.MANHATTAN || 0}, 브롱크스 ${S.by_borough.BRONX || 0}, 브루클린 ${S.by_borough.BROOKLYN || 0}`]];
+    const kp = [["난방 신고가 있었던 필지 (BBL)", fmtN(C.buildings), `상위 1%가 신고의 ${C.top1pct_share.toFixed(0)}%, 상위 10%가 ${C.top10pct_share.toFixed(0)}%`],
+      ["10일 이상 반복된 필지", `${C.repeated_ge10_pct.toFixed(0)}%`, `이 필지들이 신고의 ${C.requests_in_repeated_pct.toFixed(0)}%`],
+      ["세 조건을 모두 만족하는 필지", fmtN(S.all_three), `신고의 ${S.all_three_requests_pct.toFixed(0)}% · 맨해튼 ${S.by_borough.MANHATTAN || 0}, 브롱크스 ${S.by_borough.BRONX || 0}, 브루클린 ${S.by_borough.BROOKLYN || 0}`]];
     return card({ id: "places-bld", cls: "fixed", q: "건물 규모를 감안해도 난방 신고가 많은 곳은?",
-      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과 (난방·온수)</span> 난방·온수 신고를 건물 번호(BBL)로 묶어, 뉴욕시 건물 정보(PLUTO)의 세대 수와 HPD 난방·온수 위반 기록을 붙였습니다 ${help("building")}.`,
+      what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과 (난방·온수)</span> 난방·온수 신고를 필지 번호(BBL)로 묶어, 뉴욕시 건물 정보(PLUTO)의 세대 수와 HPD 난방·온수 위반 기록을 붙였습니다 ${help("building")}.`,
       meta: meta("신고일 (같은 날 여러 건은 1일), %", "모든 주거 세대 대비 · 규모·준공 연도·자치구별", `난방·온수 신고 ${fmtN(BD.coverage.n)}건 중 PLUTO와 연결된 ${fmtN(BD.coverage.with_units)}건 (${(BD.coverage.with_units / BD.coverage.n * 100).toFixed(1)}%)`),
       body: `<div class="kpis">${kp.map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
         (BD.left_open ? `<h4 class="minih">HPD가 「조건이 아직 남아 있음」으로 열어 둔 신고가 있는 건물</h4>` +
@@ -1121,7 +1122,7 @@
             details(`59곳 모두 보기 (세대 대비 순)`, table(head, BD.cb.map(row), { num: [1, 2, 3, 5, 6] })) +
             `<p class="note">뉴욕시 평균 세대 1,000곳당 ${f0(cs.city_per_1000)}일. 신고 건수 순위와 세대 대비 순위의 순위 상관 ${cs.rank_corr_requests_vs_per_unit.toFixed(2)}. 지역마다 신고일이 가장 많은 건물 1곳을 빼도 상위 5곳은 같습니다. 위에서 고른 자치구·세부 지역은 강조 표시됩니다.</p>`; })() : "") +
         details("준공 연도별", at) +
-        details("신고가 오래 반복된 건물일수록 위반 기록이 있나?", vt + `<p class="note">HPD 점검은 대부분 신고로 시작되므로, 신고가 많으면 위반이 발견될 기회도 많습니다(위반 건물의 ${BD.violations.pct_violation_buildings_with_complaint.toFixed(0)}%에 같은 기간 난방 신고가 있음).</p>`) +
+        details("신고가 오래 반복된 필지일수록 위반 기록이 있나?", vt + `<p class="note">HPD 점검은 대부분 신고로 시작되므로, 신고가 많으면 위반이 발견될 기회도 많습니다(위반 건물의 ${BD.violations.pct_violation_buildings_with_complaint.toFixed(0)}%에 같은 기간 난방 신고가 있음).</p>`) +
         details("더 들여다볼 후보: 세 조건 조합", ct + `<p class="note">반복 = 1년 중 10일 이상 신고. 세대 대비 상위 = 6세대 이상 건물 중 세대 10곳당 신고일 상위 10%(${BD.rate_cut.toFixed(1)}일 이상). 위반 = 난방(§27-2029)·온수(§27-2031) 위반 기록 1건 이상. 순위가 아니며 건물 주소는 보고서 표에만 있습니다.</p>`),
       read: CURTXT(`${T.f}세대 수로 나눠도 브롱크스가 가장 많고(다른 자치구의 약 2배 이상), 세부 지역으로는 브롱크스 7·4·5, 맨해튼 12·10이 뉴욕시 평균의 약 2.7~3.4배입니다. 20~99세대의 중간 규모 건물과 1946년 이전 건물에서 많습니다. 신고는 일부 건물에 몰려 있고, 오래 반복된 건물일수록 위반 기록도 많습니다.${fp ? ` 집중 주소(655 East 230th St, ${fp.unitsres}세대, ${fp.yearbuilt}년)는 난방 신고가 25건뿐이고 위반 기록이 없어, 난방 문제 건물이 아닙니다(신고 대부분이 주거 소음).` : ""}`) + ` ${T.w}세대 수는 PLUTO 현재값이고, 위반 기록이 없다고 문제가 없었다는 뜻은 아닙니다. 공공임대주택(NYCHA)의 난방 신고는 이 데이터에 거의 없어 사실상 민간 건물에 대한 결과입니다(NYCHA 카드 참고). 건물주·기관 평가가 아닙니다.`,
       more: `자료: 311 난방·온수 신고 ${YR.label}, NYC Open Data PLUTO(세대 수·준공 연도), HPD 주택 위반 기록(점검 ${YR.hpd[0]} ~ ${YR.hpd[1]}, §27-2029·§27-2031). 「모든 세대 1,000곳당」의 분모는 신고가 없는 건물을 포함한 PLUTO의 모든 주거 세대입니다. 세부 지역 분모 = 그 지역 PLUTO의 모든 주거 세대(PLUTO 커뮤니티 보드 기준, 311 신고의 지역과 99.999% 일치). 자세한 내용: reports/building_report.md` });
@@ -1286,8 +1287,8 @@
       const bo = RR.borough_order.find(r => r.problem === name);
       c5 = card({ id: "time-c5", cls: "fixed", q: `${esc(pNm(name))}: 아직 열린 신고까지 넣으면 시간이 달라지나요?`,
         what: `<span class="fixtag">유형 조건만 반영</span> 위의 시간 값은 이미 종료 기록이 있는 신고만으로 계산합니다. 생존 분석(Kaplan-Meier) ${help("survival")}은 ${YR.obs}까지 열려 있던 신고도 「그때까지는 열려 있었다」로 넣어 계산합니다.`,
-        meta: meta("시간", "종료 건만 vs 생존 분석", "자치구가 있는 신고 (이 표의 「종료 건만」은 관찰 마감 기준이라 위 KPI의 EDA 기준 값과 조금 다를 수 있음)"),
-        body: table(["자치구", "신고", "마감 시 열린 비율", "절반 시점: 종료 건만", "절반 시점: 생존 분석", "90% 시점: 종료 건만", "90% 시점: 생존 분석"], rows, { num: [1, 2, 3, 4, 5, 6] }),
+        meta: meta("시간", "종료 건만 vs 생존 분석", "자치구가 있는 신고 · 이 표의 「종료 건만」은 접수와 같은 시각에 닫힌 0시간 기록까지 넣어 계산합니다. 위 KPI의 「절반이 종료 기록에 도달한 시간」은 0시간 기록과 상태·날짜가 맞지 않는 기록을 빼고 계산해 더 길게 나옵니다(예: 도로 상태 KPI 51시간 vs 이 표 36시간, 0시간 종료가 약 14%). 같은 이름이지만 계산 대상이 다릅니다."),
+        body: table(["자치구", "신고", "마감 시 열린 비율", "절반 시점: 종료 건만 (0시간 포함)", "절반 시점: 생존 분석", "90% 시점: 종료 건만", "90% 시점: 생존 분석"], rows, { num: [1, 2, 3, 4, 5, 6] }),
         read: `${T.f}${bo ? (bo.spearman >= 0.99 ? "자치구 순서는 두 방법에서 같습니다." : `자치구 순서 상관 ${bo.spearman.toFixed(1)} — 일부 순서가 바뀌지만 가장 오래 걸리는 자치구는 ${bo.slowest_closed === bo.slowest_km ? "같습니다" : "다릅니다"}.`) : ""} 열린 신고가 많은 유형일수록 「종료 건만」의 값, 특히 90% 시점이 실제보다 짧게 나옵니다.` });
     } else if (!name) {
       const rows = ck.filter(r => r.borough === "(전체)").map(r => ({ attr: pIdx(r.problem) >= 0 ? ` data-setp="${pIdx(r.problem)}"` : "",
@@ -1295,7 +1296,7 @@
       c5 = card({ id: "time-c5", cls: "fixed", q: "아직 열린 신고까지 넣으면 시간이 달라지나요?",
         what: `<span class="fixtag">현재 선택과 무관한 전체 참고 결과</span> 종료 기록이 있는 신고만으로 계산한 값과, ${YR.obs}까지 열려 있던 신고도 넣은 생존 분석(Kaplan-Meier) ${help("survival")} 값을 비교합니다.`,
         meta: meta("시간", "종료 건만 vs 생존 분석", "신고가 많은 15개 유형 · 행을 누르면 자치구별 비교"),
-        body: table(["유형", "마감 시 열린 비율", "절반: 종료 건만", "절반: 생존 분석", "90%: 종료 건만", "90%: 생존 분석"], rows, { num: [1, 2, 3, 4, 5] }),
+        body: table(["유형", "마감 시 열린 비율", "절반: 종료 건만 (0시간 포함)", "절반: 생존 분석", "90%: 종료 건만", "90%: 생존 분석"], rows, { num: [1, 2, 3, 4, 5] }),
         read: CURTXT(`${T.f}경찰 출동 유형은 열린 신고가 거의 없어 차이가 없습니다. 도로 상태·배관·비위생 상태처럼 오래 걸리는 업무는 「종료 건만」의 값이 짧게 나오고, 특히 90% 시점 차이가 큽니다(도로 상태 270 → 625시간). 15개 유형 중 13개는 자치구 순서가 두 방법에서 완전히 같습니다.`) });
     }
     return c4 + c5;

@@ -6,7 +6,7 @@ import streamlit as st
 
 REP = Path(__file__).resolve().parents[1] / "reports"
 TITLES = {
-    "heat_priority_proposal": "제안: 지난해 신고 기록으로 난방 선제 점검 목록 만들기",
+    "heat_priority_proposal": "제안: 지난 신고 기록으로 난방 시즌 전 선제 점검 목록 만들기",
     "false_report_feasibility_review": "타당성 검토: 허위·오류 가능 신고 검토 업무",
     "events_report": "행사와 신고 증가: 지역·시간별 비교",
     "eda_report": "탐색적 데이터 분석(EDA) 보고서",
@@ -49,16 +49,25 @@ def plain_tilde(line):
     return "".join(part if part.startswith("`") else re.sub(r"(?<![~\\])~(?!~)", r"\\~", part) for part in CODE.split(line))
 
 
+BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*")
+
+
+def html_bold(line):
+    """**x** next to Korean text or punctuation (e.g. **14.4%**의, **「x」**) is not bold in CommonMark and shows the
+    asterisks. Turn it into <strong> outside inline code; the page renders with HTML on (2026-11-28)."""
+    return "".join(part if part.startswith("`") else BOLD.sub(r"<strong>\1</strong>", part) for part in CODE.split(line))
+
+
 buf = []
 def flush():
     if buf:
-        st.markdown("\n".join(buf)); buf.clear()
+        st.markdown("\n".join(buf), unsafe_allow_html=True); buf.clear()
 in_fence = False
 for line in (REP / f"{name}.md").read_text(encoding="utf-8").splitlines():
     if line.strip().startswith("```"):
         in_fence = not in_fence
     elif not in_fence:
-        line = plain_tilde(line)
+        line = html_bold(plain_tilde(line))
     m = IMG.match(line.strip())
     if m:
         flush()
