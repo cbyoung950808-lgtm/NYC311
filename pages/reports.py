@@ -36,6 +36,7 @@ TITLES = {
     "revalidation_report": "두 해 비교 재검증",
     "year_dashboard_report": "대시보드 지난해 화면: 같은 방식으로 계산한 지난해 결과",
     "spike_events_review": "급증일의 단서, 행사 카드 검증, 두 해 합쳐 보기",
+    "income_noise_report": "저소득 지역과 311 신고: 소음은 많이, 문제에 비해서는 적게",
 }
 # reading order: proposals -> feasibility review -> evidence (grouped by question)
 GROUPS = [
@@ -74,6 +75,9 @@ EVIDENCE = [
         ("rereport_report", "종결 뒤 7일 안에 약 3분의 1이 다시 접수되고, 중복 종결 뒤에 가장 많습니다(난방 출입 실패 결론은 2026-11-28 철회)."),
         ("heat_record_change_report", "2026-01-24부터 HPD가 난방 신고 일부를 열어 두는 기록이 다시 많아져, 7일 지표가 그 시점에 바뀌었습니다."),
     ]),
+    ("지역 특성과 형평성", [
+        ("income_noise_report", "저·중소득 주민이 많은 구역일수록 소음 신고가 약 3배 많지만, 난방은 위반 1건당 신고가 오히려 적습니다(두 해, 다른 연구와 같은 방향)."),
+    ]),
     ("두 해 검증과 기록 점검", [
         ("revalidation_report", "대부분의 결론이 지난해에도 나타났고, 처리 시간의 자치구 차이는 지표에 따라 반만 반복됐습니다."),
         ("year_dashboard_report", "지난해 화면을 같은 방식으로 계산했고, 지난해 브롱크스 경찰 신고와 2024-11 납 검사 키트 급증을 들여다봤습니다."),
@@ -92,7 +96,7 @@ SHORT = {
     "poi_report": "신고가 몰린 주소", "place_centred_report": "장소 바로 옆 신고", "weather_report": "날씨와 신고",
     "surge_delay_report": "몰릴 때 종료 지연", "events_report": "행사와 신고", "spike_events_review": "급증일·행사 검증",
     "resolution_playbook_report": "자치구별 종료 시간", "rereport_report": "종결 후 재접수", "heat_record_change_report": "난방 기록 방식 변화",
-    "revalidation_report": "두 해 비교 재검증", "year_dashboard_report": "지난해 화면", "reclass_check_report": "유형 이름 변경 영향",
+    "revalidation_report": "두 해 비교 재검증", "income_noise_report": "저소득 지역과 신고", "year_dashboard_report": "지난해 화면", "reclass_check_report": "유형 이름 변경 영향",
 }
 
 try:
