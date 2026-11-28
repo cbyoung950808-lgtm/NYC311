@@ -359,37 +359,37 @@
       read: `${T.f}직전 1년의 신고 이력으로 만든 규칙(신고일 순 ${pc(best.share_days)}, 신고 건수 순 ${pc(vol.share_days)})은 비슷한 수준으로 무작위의 약 ${Math.round(best.share_days / rnd.share_days)}배였습니다. 두 규칙의 대략적인 범위(${rrTxt("days")}, ${rrTxt("volume")})가 겹쳐 어느 쪽이 낫다고 말할 수 없고, 한 시즌만 비교했습니다. 신고일 순은 같은 날 여러 건을 하루로 세어 몰아치기 접수의 영향을 줄이려고 고른 방식입니다. 세 조건을 모두 만족하는 목록은 이보다 낮았습니다. 단순히 세대 수가 많은 필지를 고르면(NYCHA 제외) ${up ? pc(up.share_days) : "-"}로, 신고 이력 목록이 「큰 건물 목록」보다 약 ${up ? Math.round(best.share_days / up.share_days) : "-"}배 더 짚었습니다. ${T.m}난방 문제는 보일러·배관처럼 건물에 붙은 원인이 많아 같은 곳에서 반복되는 것으로 보입니다(원인은 확인하지 않음). ${T.w}이 비율은 목록에 들어간 비중이지 문제 감소 효과가 아니며, 선제 점검의 효과는 검증하지 않았습니다. 시즌 신고일의 약 ${Math.round(newShare * 100)}%는 직전 1년 신고가 없던 필지에서 나와 목록으로 못 잡고, 덜 신고하는 곳과 311에 거의 없는 공공임대주택(NYCHA)은 빠집니다. 건물주·기관 평가가 아닙니다.`,
       more: `시간 기준: 목록 작성일 2025-09-30(난방 시즌 전날). 선정 자료 = 2024-11-01 ~ 2025-09-30 신고와 그 기간 점검일의 HPD 위반. 평가 = 2025-10-01 ~ 2026-05-31 난방 시즌(10월은 지난해 파일, 11~5월은 올해 파일). 주 지표 = 시즌 중 난방 신고가 있었던 필지·날짜 중 목록 필지의 비중(같은 날 여러 건은 1). HPD 위반 = 같은 시즌 점검일의 난방·온수 위반(신고 없던 필지 포함). 무작위 = 같은 수를 200번 뽑은 평균. 대략적인 범위 = 시즌 필지를 다시 뽑아(300번) 목록은 그대로 두고 계산한 2.5~97.5% 구간으로, 다른 해의 결과를 보장하지 않습니다. 「세대 수 많은 순」 = 311 기록 없이 PLUTO 주거 세대 수만으로 고른 비교 기준(모든 주거 필지 / NYCHA 필지 제외 / 선정 기간에 신고가 있던 필지 중). 모든 주거 필지 상위 1,000곳에는 NYCHA 필지가 ${fmtN((PD.size_baselines || {}).nycha_in_units_all_1000 || 0)}곳 들어갑니다. 세대 수는 현재 PLUTO 값. 자세한 내용: <a href="../reports/heat_priority_proposal.md" target="_blank">제안 보고서</a>` });
   }
-  // second proposal (added 2026-11-28, final review): revisit heat requests closed as "no access"
+  // second proposal (added 2026-11-28; rewritten the same day: explicit no-access wording only, see the report section 1)
   function proposal2Card() {
     const PD = window.PROPOSAL_DATA, NA = PD && PD.no_access; if (!NA) return "";
-    const YL = { prev: "2024-11 ~ 2025-10", cur: "2025-11 ~ 2026-10" }, NAC = "출입·확인 실패", ACT = "조치·위반 발부 기록";
+    const YL = { prev: "2024-11 ~ 2025-10", cur: "2025-11 ~ 2026-10" }, NAC = "출입 실패(명시)", ACT = "조치·위반 발부 기록";
     const tm = (y, c) => NA.timing.find(r => r.year === YL[y] && r.rcat === c) || {};
     const lp = (y, c, n) => (NA.loop.find(r => r.year === YL[y] && r.rcat === c && r.next_cat === n) || {}).share_pct;
-    const f1 = v => v == null ? "-" : `${(+v).toFixed(1)}%`, mt = y => NA.matched.find(r => r.year === y) || {};
-    const sc = NA.scale, sv = y => (NA.survival || []).find(r => r.year === YL[y] && r.rcat === NAC) || {};
-    const tbl = table(["해", "앞 신고의 종결", "하루 안 재접수", "7일 안", "30일 안 다음 신고가 또 출입 실패", "다음 신고가 조치·위반 발부"],
-      ["prev", "cur"].flatMap(y => [NAC, ACT].map(c => ({ cls: c === NAC ? "hlrow" : "", cells: [c === NAC ? YL[y] : "", esc(c), f1(tm(y, c).within_1d), f1(tm(y, c).within_7d), `<b>${f1(lp(y, c, NAC))}</b>`, f1(lp(y, c, ACT))] }))), { num: [2, 3, 4, 5] });
-    const mtbl = table(["해", "7일 (신고 한 건)", "30일 (신고 한 건)", "7일 (같은 날 묶음)"], ["prev", "cur"].map(y => [YL[y], `+${mt(y).request_7d}%p`, `+${mt(y).request_30d}%p`, `+${mt(y).group_7d}%p`]), { num: [1, 2, 3] });
+    const sv = (y, c) => (NA.survival || []).find(r => r.year === YL[y] && r.rcat === c) || {};
+    const f1 = v => v == null ? "-" : `${(+v).toFixed(1)}%`, mt = y => NA.matched.find(r => r.year === y) || {}, sg = v => `${v > 0 ? "+" : ""}${v}%p`;
+    const sc = NA.scale, nore = (y, c) => lp(y, c, "(30일 안 재접수 없음)");
+    const tbl = table(["해", "앞 신고의 종결", "7일 안 재신고", "30일 안 재신고 없음", "다음 신고도 출입 실패", "그 주소 복구·위반 확인까지 (중앙값)"],
+      ["prev", "cur"].flatMap(y => [NAC, ACT].map(c => ({ cls: c === NAC ? "hlrow" : "", cells: [c === NAC ? YL[y] : "", c === NAC ? "출입 실패 (명시)" : "복구 확인·위반 발부", f1(tm(y, c).within_7d), `<b>${f1(nore(y, c))}</b>`, f1(lp(y, c, NAC)), `<b>${sv(y, c).restored_or_viol_median_days ?? "-"}일</b>`] }))), { num: [2, 3, 4, 5] });
     const pilot = table(["항목", "설계"], [
-      ["배정 단위", "주소 단위로 무작위 배정(처음 출입 실패가 나온 날 정하고 시즌 끝까지 유지). 같은 주소의 신고가 양쪽 군에 섞이지 않게"],
-      ["나누기", "자치구 안에서 반씩: 다음 날 예약 재방문 vs 지금처럼(다시 신고가 오면 점검)"],
-      ["주 성과 지표", `출입 실패 종결부터 그 주소에 처음 「조치·위반 발부」 기록이 남기까지 걸린 날(생존 분석, 기록 없으면 관찰 마감에서 중도절단). 지금 기준값: 절반 시점 ${sv("cur").median_days}일(올해) · ${sv("prev").median_days}일(지난해)`],
-      ["보조 지표", "30일 안 재접수율, 다음 신고가 또 출입 실패로 닫힌 비율, 재방문 출입 성공률(HPD 방문 기록)"],
-      ["제안 1과의 분리", `제안 1 상위 2,000곳 필지의 주소는 제외(올해 시즌 출입 실패의 ${NA.pilot.cur.pct_in_top2000}%가 이 필지에서 나옴)`],
-      ["규모의 감", `올해 시즌 출입 실패 종결 ${fmtN(NA.pilot.cur.season_na)}건, 주소 ${fmtN(NA.pilot.cur.addresses)}곳. ${NA.pilot.cur.pct_at_addr_2plus}%는 같은 시즌에 출입 실패가 두 번 이상 나온 주소`],
-      ["중단 기준", "재방문 때문에 새 신고의 첫 점검이 늦어지면 멈춤"]]);
-    return card({ id: "home-prop2", cls: "proposal", q: "제안 2: 「출입 실패」로 닫힌 난방 신고를 다음 날 다시 방문하기",
-      what: `<span class="fixtag">두 해 자료로 확인 · 기준 연도와 무관</span> HPD 점검반이 집에 들어가지 못해 「출입·확인 실패」로 닫은 난방·온수 신고는, 세입자가 다시 신고할 때까지 기다리지 말고 <b>가능하면 다음 날(늦어도 3일 안) 재방문을 잡고 시간을 미리 알리자</b>는 제안입니다. 그 사이 같은 주소에서 새 신고가 오면 예약된 재방문에 묶습니다.`,
-      meta: meta("%, %p", "출입 실패 종결 vs 조치·위반 발부 종결", "주소가 있는 난방·온수 신고 · 같은 주소·유형의 다음 신고 · 대상 사용자: HPD 난방 점검팀, 311 안내"),
+      ["배정 단위", "주소 단위로 무작위 배정(처음 출입 실패가 나온 날 정하고 시즌 끝까지 유지)"],
+      ["나누기", "자치구 안에서 반씩: 다음 근무일 확인 전화 + 7일 안 예약 재방문 vs 지금처럼(다시 신고가 오면 점검)"],
+      ["주 성과 지표", "두 군 모두에 같은 방식으로 묻는 30일째 확인(전화 또는 HPD 점검 기록): 난방 복구·위반 발부 여부. 311 종결 기록만 쓰면 시범군의 확인 전화가 「복구 확인」 기록을 만들어 효과가 부풀려짐"],
+      ["보조 지표", `처음 복구·위반 확인까지 걸린 날(생존 분석, 지금 기준값 30일 안 ${f1(sv("cur", NAC).restored_or_viol_by_30d_pct)}), 30일 안 재신고, 또 출입 실패 비율`],
+      ["제안 1과의 분리", `제안 1 상위 2,000곳 필지의 주소는 제외(올해 시즌 출입 실패의 ${NA.pilot.cur.pct_in_top2000}%)`],
+      ["규모의 감", `올해 시즌 명시적 출입 실패 ${fmtN(NA.pilot.cur.season_na)}건, 주소 ${fmtN(NA.pilot.cur.addresses)}곳`],
+      ["중단 기준", "전화·재방문 때문에 새 신고의 첫 점검이 늦어지면 멈춤"]]);
+    return card({ id: "home-prop2", cls: "proposal", q: "제안 2: 「출입 실패」로 닫힌 난방 신고를 확인 전화와 예약 재방문으로 마무리하기",
+      what: `<span class="fixtag">두 해 자료로 확인 · 기준 연도와 무관</span> HPD가 집에 들어가지 못해 닫은 난방·온수 신고를 재신고에 맡기지 말고, <b>다음 근무일에 신고자에게 복구 여부를 전화로 묻고, 복구되지 않았으면 세입자와 시간을 정해 재방문</b>하자는 제안입니다.`,
+      meta: meta("%, 일", "명시적 출입 실패 종결 vs 복구 확인·위반 발부 종결", "주소가 있는 난방·온수 신고 · 같은 주소·유형의 다음 신고 · 대상 사용자: HPD 난방 점검팀, 311 안내"),
       body: `<div class="kpis">
-        <div class="kpi"><div class="lab">문제의 크기</div><div class="val">${fmtN(sc.cur.no_access)}건</div><div class="sub">올해 난방 종결의 ${sc.cur.no_access_share_pct}%가 출입 실패 (지난해 ${fmtN(sc.prev.no_access)}건, ${sc.prev.no_access_share_pct}%)</div></div>
-        <div class="kpi"><div class="lab">하루 안에 다시 신고</div><div class="val">${f1(tm("cur", NAC).within_1d)}</div><div class="sub">조치 종결 뒤 ${f1(tm("cur", ACT).within_1d)} · 지난해 ${f1(tm("prev", NAC).within_1d)} vs ${f1(tm("prev", ACT).within_1d)}</div></div>
-        <div class="kpi"><div class="lab">다시 들어와도 또 출입 실패</div><div class="val">${f1(lp("cur", NAC, NAC))}</div><div class="sub">조치 종결 뒤 ${f1(lp("cur", ACT, NAC))} · 지난해 ${f1(lp("prev", NAC, NAC))} vs ${f1(lp("prev", ACT, NAC))}</div></div></div>` +
-        tbl + `<p class="note">각 비율은 그 기간을 끝까지 지켜볼 수 있는 종결만 분모로 씁니다. 다음 신고는 그해 파일 안에서 찾습니다(두 해 비교 표는 다음 해 파일까지 찾아 숫자가 조금 다름). 30일 안 다음 신고 기준 단순 비교입니다. 세부 유형·증상·접수 월·자치구를 맞춘 재접수율 차이(출입 실패 − 조치)는 아래와 같습니다.</p>` + mtbl +
-        details("효과는 어떻게 확인하나요? 시범 운영 설계 (제안, 실행하지 않음)", pilot + `<p class="note">재접수가 줄어도 해결됐는지, 세입자가 포기했는지 구분할 수 없어 주 지표를 「조치·위반 발부 기록까지 걸린 날」로 둡니다. 재접수가 없는 주소도 분석에서 빠지지 않습니다. 이 문구도 기록이지 수리 완료가 아니며, 재방문 결과가 HPD 점검 기록에만 남으면 311로는 효과를 작게 봅니다. 재방문 인력·비용은 추정하지 않았습니다.</p>`) +
-        details("종결 기록 시각 (해석 주의)", `<p class="note">출입 실패 종결은 17~20시에 약 40%가 기록됐고, 조치 종결은 오전에 더 많았습니다. 다만 이 시각은 기록을 닫은 시각이라 방문 시각인지 나중에 입력한 시각인지 알 수 없습니다. 「저녁 방문이 실패한다」로 읽지 않습니다.</p>`),
-      read: `${T.f}두 해 모두 출입 실패 뒤에는 더 빨리 다시 신고가 들어왔고(맞춘 7일 차이 +${mt("prev").request_7d}%p / +${mt("cur").request_7d}%p), 다시 들어온 신고가 또 출입 실패로 닫히는 비율도 조치 종결 뒤보다 높았습니다. 다시 들어온 신고의 절반은 2일 안에 들어와, 재방문은 다음 날이어야 재접수를 앞설 수 있습니다(하루 안 재접수도 약 30%라 일부는 놓침). ${T.w}재접수는 해결 실패가 아니고, 같은 세입자인지 알 수 없습니다. 출입 실패의 원인과 실제 재방문 여부는 자료에 없습니다. 두 해의 크기(출입 실패 비중 ${sc.prev.no_access_share_pct}% / ${sc.cur.no_access_share_pct}%)가 달라 기록 방식 변화가 섞였을 수 있습니다.`,
-      more: `출입 실패·조치 = 종결 문구 분류(종료 시간 비교 분석과 같은 규칙). 종결 = 접수 뒤 닫히고 관찰 마감(다음 해 11-11) 전. 다음 신고 = 같은 자치구·주소 비교 키·유형으로 종결 뒤 처음 들어온 신고(그해 파일 안). 맞춘 비교 = rereport 분석의 「조치·위반 발부」 대비 직접 표준화. 자세한 내용: <a href="../reports/no_access_revisit_proposal.md" target="_blank">제안 2 보고서</a>` });
+        <div class="kpi"><div class="lab">문제의 크기</div><div class="val">${fmtN(sc.cur.no_access)}건</div><div class="sub">올해 난방 종결의 ${sc.cur.no_access_share_pct}%가 「들어가지 못해 닫음」 (지난해 ${fmtN(sc.prev.no_access)}건, ${sc.prev.no_access_share_pct}%) · 뉴욕시 감사관 보고 13~17%와 비슷</div></div>
+        <div class="kpi"><div class="lab">30일 안 다시 신고하지 않음</div><div class="val">${f1(nore("cur", NAC))}</div><div class="sub">복구 확인 뒤 ${f1(nore("cur", ACT))} · 지난해 ${f1(nore("prev", NAC))} vs ${f1(nore("prev", ACT))}</div></div>
+        <div class="kpi"><div class="lab">그 주소 복구·위반 확인까지</div><div class="val">${sv("cur", NAC).restored_or_viol_median_days}일</div><div class="sub">중앙값 · 복구 확인 뒤 ${sv("cur", ACT).restored_or_viol_median_days}일 · 지난해 ${sv("prev", NAC).restored_or_viol_median_days}일 vs ${sv("prev", ACT).restored_or_viol_median_days}일</div></div></div>` +
+        tbl + `<p class="note">각 비율은 그 기간을 끝까지 지켜볼 수 있는 종결만 분모로 씁니다. 「복구 확인·위반 발부」 묶음은 약 89%가 세입자·전화의 난방 복구 확인, 약 11%가 위반 발부입니다. 세부 유형·증상·접수 월·자치구를 맞춘 7일 재신고 차이(출입 실패 − 복구 확인): 지난해 ${sg(mt("prev").request_7d)}, 올해 ${sg(mt("cur").request_7d)}.</p>` +
+        details("효과는 어떻게 확인하나요? 시범 운영 설계 (제안, 실행하지 않음)", pilot + `<p class="note">재신고가 없는 것이 복구 때문인지 포기 때문인지 자료로는 알 수 없습니다. 시범의 30일째 확인이 그 답을 주는 첫 자료가 됩니다. 전화·재방문의 인력과 비용은 추정하지 않았습니다.</p>`) +
+        details("처음 계산에서 바뀐 점", `<p class="note">처음 계산은 「점검을 했거나 시도했다. 결과는 HPD 웹사이트에서」로 닫힌 ${fmtN(sc.cur.ambiguous_attempted)}건(올해)까지 출입 실패로 셌습니다. 이 묶음은 하루 안 재신고가 약 55%로 매우 빨라, 「출입 실패 뒤 더 빨리 재접수된다」는 결론을 만들었습니다. 명시적 출입 실패만 보면 반대라서 그 결론을 철회했습니다.</p>`),
+      read: `${T.f}두 해 모두 명시적 출입 실패로 닫힌 뒤에는 다시 신고하는 일이 오히려 적었고(맞춘 7일 차이 ${sg(mt("prev").request_7d)} / ${sg(mt("cur").request_7d)}), 다시 신고해도 또 출입 실패로 끝나는 일이 더 잦았으며, 그 주소에서 복구·위반이 확인되기까지 훨씬 오래 걸렸습니다. ${T.m}재신고에 맡기면 문제가 확인되지 않은 채 남을 수 있습니다. ${T.w}재신고가 없는 것은 난방이 돌아왔기 때문일 수도 있습니다. 같은 세입자인지, 왜 들어가지 못했는지는 자료에 없습니다.`,
+      more: `출입 실패 = 「was not able to gain access …」, 「unable to complete the inspection」 문구로 닫힌 신고. 종결 = 접수 뒤 닫히고 관찰 마감(다음 해 11-11) 전. 다음 신고 = 같은 자치구·주소 비교 키·유형으로 종결 뒤 처음 들어온 신고(그해 파일 안). 맞춘 비교 = 출입 실패의 세부 유형·증상·접수 월·자치구 구성에 맞춘 직접 표준화. 바깥 근거: <a href="https://comptroller.nyc.gov/reports/turn-up-the-heat-2025-update/" target="_blank" rel="noopener">뉴욕시 감사관 Turn Up the Heat 2025</a>. 자세한 내용: <a href="../reports/no_access_revisit_proposal.md" target="_blank">제안 2 보고서</a>` });
   }
   // first screen: one-page story, problem -> proposal -> check -> how to run -> expected effect (2026-11-28, final review)
   function storyCard() {
@@ -405,20 +405,21 @@
       `<span class="big">${pc(best.share_days)}</span>시즌 전 목록이 2025-26 시즌 난방 신고일을 미리 포함. 무작위 ${pc(rnd.share_days)}, 세대 수 많은 순 ${up ? pc(up.share_days) : "-"}`,
       `상위 2,000곳을 무작위로 반씩: 선제 점검 vs 지금처럼. 주 지표 = 필지당 시즌 신고일`,
       `시즌 신고일의 약 5분의 1이 나오는 필지에 먼저 닿음. <b>문제 감소 효과는 시범으로 확인</b>`]);
-    const nc = NA ? NA.scale.cur : null, tmv = (y, c) => (NA.timing.find(r => r.year === y && r.rcat === c) || {}).within_1d;
-    const lpv = (y, c) => (NA.loop.find(r => r.year === y && r.rcat === c && r.next_cat === "출입·확인 실패") || {}).share_pct;
-    const mt = y => (NA.matched.find(r => r.year === y) || {}).request_7d, CY = "2025-11 ~ 2026-10";
+    const YC = "2025-11 ~ 2026-10", NAC = "출입 실패(명시)", ACT = "조치·위반 발부 기록";
+    const nc = NA ? NA.scale.cur : null, nore = c => (NA.loop.find(r => r.year === YC && r.rcat === c && r.next_cat === "(30일 안 재접수 없음)") || {}).share_pct;
+    const svm = c => ((NA.survival || []).find(r => r.year === YC && r.rcat === c) || {}).restored_or_viol_median_days;
+    const mt = y => (NA.matched.find(r => r.year === y) || {}).request_7d;
     const r2 = NA ? row("제안 2", "시즌 중", [
-      `<span class="big">${fmtN(nc.no_access)}건</span>올해 난방 종결의 ${nc.no_access_share_pct}%가 「출입·확인 실패」. 하루 안 재접수 ${tmv(CY, "출입·확인 실패")}% (조치 뒤 ${tmv(CY, "조치·위반 발부 기록")}%)`,
-      `출입 실패로 닫히면 재신고를 기다리지 않고 <b>다음 날 재방문</b>을 잡고 시간을 미리 안내. 그 사이 새 신고는 예약에 묶음`,
-      `<span class="big">두 해 모두</span>맞춘 7일 재접수 +${mt("prev")}%p / +${mt("cur")}%p. 다시 들어와도 또 출입 실패 ${lpv(CY, "출입·확인 실패")}% (조치 뒤 ${lpv(CY, "조치·위반 발부 기록")}%)`,
-      `출입 실패가 나온 주소를 무작위로 반씩: 예약 재방문 vs 지금처럼. 주 지표 = 그 주소의 첫 조치 기록까지 걸린 날(생존 분석)`,
-      `재신고를 기다리는 시간과 반복 출입 실패를 줄일 수 있는지 확인. <b>효과는 아직 검증 안 됨</b>`]) : "";
+      `<span class="big">${fmtN(nc.no_access)}건</span>올해 난방 종결의 ${nc.no_access_share_pct}%가 「들어가지 못해 닫음」. 30일 안 다시 신고하지 않음 ${nore(NAC)}% (복구 확인 뒤 ${nore(ACT)}%)`,
+      `출입 실패로 닫히면 재신고를 기다리지 않고 <b>다음 근무일 확인 전화</b>, 복구 안 됐으면 <b>세입자와 시간을 정해 재방문</b>`,
+      `<span class="big">${svm(NAC)}일</span>그 주소에서 복구·위반이 확인되기까지 중앙값 (복구 확인 뒤 ${svm(ACT)}일). 두 해 모두 재신고가 적고 늦음(맞춘 7일 ${mt("prev")} / ${mt("cur")}%p)`,
+      `출입 실패가 나온 주소를 무작위로 반씩: 전화+예약 재방문 vs 지금처럼. 주 지표 = 두 군 공통 30일째 복구 확인`,
+      `확인되지 않은 채 남는 출입 실패를 줄일 수 있는지 확인. <b>효과는 아직 검증 안 됨</b>`]) : "";
     return `<figure class="card story" id="home-story-card">
       <figcaption><span class="cq">한 장 요약: 겨울 난방 점검을 시즌 전과 시즌 중에 돕는 두 제안</span></figcaption>
       <p class="lead">대상 사용자: 뉴욕시 주택보존개발국(HPD) 난방 점검팀, 311 안내, 세입자 단체. 두 해(2024-11 ~ 2026-10) 311 자료로 확인했고, 기준 연도 선택과 관계없이 같습니다.</p>
       <div class="story-grid">${["", ...COLS].map(c => `<div class="sh">${c}</div>`).join("")}${r1}${r2}</div>
-      <p class="flow"><b>시즌 전</b> 반복 필지 선제 점검 → <b>시즌 중</b> 출입 실패 신고 빠른 재방문. 둘 다 HPD 난방 점검 한 가지 업무라 함께 시범할 수 있습니다(대상은 겹치지 않게).</p>
+      <p class="flow"><b>시즌 전</b> 반복 필지 선제 점검 → <b>시즌 중</b> 출입 실패 신고 확인 전화·예약 재방문. 둘 다 HPD 난방 점검 한 가지 업무라 함께 시범할 수 있습니다(대상은 겹치지 않게).</p>
       <div class="read">${T.w}수치는 「목록에 들어간 비중」과 「다시 접수된 비율」입니다. 문제가 줄어든 비율이 아니며, 신고 수는 문제의 양이 아닙니다. 목록은 공개하지 않고 건물주·기관 평가에 쓰지 않습니다.</div>
       <div class="gobar"><button class="ghost" data-open="fold-prop1">제안 1 자세히 ↓</button><button class="ghost" data-open="fold-prop2">제안 2 자세히 ↓</button>${goBtn("places", "근거: 3번 화면 반복 필지")}${goBtn("time", "근거: 4번 화면 재접수")}</div>
     </figure>`;
@@ -1331,9 +1332,10 @@
         cells: [esc(pNm(r.problem)), fmtN(r.closures), f1(r.rate_1d), f1(r.rate_7d), `<b>${f1(r.rate_30d)}</b>`, f1(r.rate_30d_group)] }));
       body = `<div class="kpis">${[["7일 안 재접수", f1(ov.rate_7d), `종결 ${fmtN(ov.n_7d)}건 기준 · 같은 날·장소·유형 묶음 단위 ${f1(og.rate_7d)}`],
         ["30일 안 재접수", f1(ov.rate_30d), `묶음 단위 ${f1(og.rate_30d)}`]].map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
-        (() => { const H = "HEAT/HOT WATER", hw = RR.by_wording.filter(r => r.problem === H), fa = hw.find(r => r.rcat === "출입·확인 실패"), ac = hw.find(r => r.rcat === "조치·위반 발부 기록");
-          const mfa = RR.matched.find(r => r.problem === H && r.category === "출입·확인 실패");
-          return fa && ac ? `<div class="callout">${T.f}<b>난방·온수</b>: 「출입·확인 실패」로 닫힌 뒤 7일 안 재접수 <b>${f1(fa.rate_7d)}</b>, 「조치·위반 발부 기록」 뒤 ${f1(ac.rate_7d)} (단순 비교, ${(fa.rate_7d - ac.rate_7d).toFixed(1)}%p 차이).${mfa ? ` 세부 유형·증상·접수 월·자치구를 맞춘 30일 차이는 ${mfa.diff_main > 0 ? "+" : ""}${mfa.diff_main.toFixed(1)}%p(${esc(mfa.status)}).` : ""} 점검반이 들어가지 못해 닫힌 신고는 곧 다시 들어오는 편입니다. <button class="link" data-setp="${P.indexOf(H)}">난방·온수 종결 문구별 보기 →</button></div>` : ""; })() +
+        (() => { const H = "HEAT/HOT WATER", NA = window.PROPOSAL_DATA && window.PROPOSAL_DATA.no_access; if (!NA) return "";
+          // corrected 2026-11-28: the 'access / check failed' group mixes in an ambiguous HPD wording (see proposal 2)
+          const t = (y, c) => (NA.timing.find(r => r.year === y && r.rcat === c) || {}).within_7d, m = k => (NA.matched.find(r => r.year === k) || {}).request_7d;
+          return `<div class="callout">${T.f}<b>난방·온수</b>: HPD가 「들어가지 못해 닫음」이라고 명시한 종결 뒤 7일 안 재접수는 <b>${f1(t("2025-11 ~ 2026-10", "출입 실패(명시)"))}</b>, 「복구 확인·위반 발부」 뒤 ${f1(t("2025-11 ~ 2026-10", "조치·위반 발부 기록"))}입니다(올해). 같은 조건으로 맞춰도 지난해 ${m("prev")}%p, 올해 ${m("cur")}%p로 <b>오히려 적습니다</b>. 아래 표의 「출입·확인 실패」 묶음에는 결과가 적히지 않은 「점검을 했거나 시도했다」 문구가 약 40% 섞여 있어, 처음 낸 「출입 실패 뒤 더 빨리 재접수」 결론은 철회했습니다. <button class="link" data-setp="${P.indexOf(H)}">난방·온수 종결 문구별 보기 →</button></div>`; })() +
         table(["유형 (종결 많은 15개)", "종결", "1일", "7일", "30일", "30일 (묶음 단위)"], rows, { num: [1, 2, 3, 4, 5] }) +
         `<p class="note">행을 누르면 그 유형을 고르고, 종결 문구별 재접수율을 볼 수 있습니다.</p>`;
       read = CURTXT(`${T.f}종결된 신고의 약 3분의 1이 7일 안에, 절반 가까이가 30일 안에 같은 주소·유형으로 다시 접수됩니다. 소음·난방은 높고 눈·얼음·거리 오염은 낮습니다.`) + ` ${T.w}재접수는 해결 실패가 아닙니다. 같은 건물의 다른 세대, 새로 생긴 문제, 같은 사람의 재신고를 구분할 수 없습니다.`;
@@ -1354,7 +1356,7 @@
         ["재접수 절반 시점", all && all.median_days != null ? `${all.median_days.toFixed(1)}일` : "절반 미만", "생존 분석: 추적이 짧은 종결 건도 반영"]].map(([l, v, s2]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s2}</div></div>`).join("")}</div>` +
         table(["종결 문구", "종결", "1일", "7일", "30일", "재접수 절반 시점", "맞춘 비교 30일 (조치 대비)", "판정"], rows, { num: [1, 2, 3, 4, 5, 6] }) +
         (name === "HEAT/HOT WATER" ? details("증상별(난방 없음·온수 없음) 30일 재접수율", table(["증상", "종결 문구", "종결", "30일"], RR.heat_symptom.map(r => [esc(r.addl), esc(r.rcat), fmtN(r.closures), f1(r.rate_30d)]), { num: [2, 3] })) : "");
-      read = (name === "HEAT/HOT WATER" ? CURTXT(`${T.f}「출입·확인 실패」로 종결된 뒤에는 같은 조건의 「조치」보다 7일 안 재접수가 약 10%p 많고(더 빨리 다시 옴), 30일이면 차이가 약 5%p로 줄어듭니다. 「중복」 종결 뒤 재접수가 가장 많은 것은 이미 여러 세대가 신고 중인 건물이라는 표시로 보입니다.`) + " " : "") +
+      read = (name === "HEAT/HOT WATER" ? `${T.w}이 표의 「출입·확인 실패」에는 결과 불명 문구(「점검을 했거나 시도했다」)가 약 40% 섞여 있습니다. 명시적 출입 실패만 보면 「복구 확인·위반 발부」보다 재접수가 오히려 적습니다(첫 화면 제안 2). 「조치·위반 발부 기록」은 대부분 세입자·전화의 난방 복구 확인입니다. ` + CURTXT(`${T.f}「중복」 종결 뒤 재접수가 가장 많은 것은 이미 여러 세대가 신고 중인 건물이라는 표시로 보입니다.`) + " " : "") +
         `${T.w}종결 문구가 재접수의 원인이라는 뜻이 아닙니다. 어떤 건물·상황에서 그 문구가 나오는지가 함께 작용합니다. 재접수는 해결 실패가 아닙니다.`;
     }
     const c4 = card({ id: "time-c4", cls: "fixed", q, what: fixed + " " + def,

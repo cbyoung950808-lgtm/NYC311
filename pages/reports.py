@@ -13,7 +13,7 @@ import streamlit as st
 REP = Path(__file__).resolve().parents[1] / "reports"
 TITLES = {
     "heat_priority_proposal": "제안 1: 지난 신고 기록으로 난방 시즌 전 선제 점검 목록 만들기",
-    "no_access_revisit_proposal": "제안 2: 「출입 실패」로 닫힌 난방 신고를 빨리 다시 방문하기",
+    "no_access_revisit_proposal": "제안 2: 「출입 실패」로 닫힌 난방 신고를 확인 전화와 예약 재방문으로 마무리하기",
     "false_report_feasibility_review": "타당성 검토: 허위·오류 가능 신고 검토 업무",
     "events_report": "행사와 신고 증가: 지역·시간별 비교",
     "eda_report": "탐색적 데이터 분석(EDA) 보고서",
@@ -40,7 +40,7 @@ TITLES = {
 GROUPS = [
     ("1. 제안", "데이터 분석으로 바로 시범해 볼 수 있는 개선안", [
         ("heat_priority_proposal", "시즌 전 신고 이력으로 만든 필지 1,000곳 목록이 다음 시즌 난방 신고일의 18.6%를 미리 짚었습니다(무작위 2.4%, 세대 수 많은 순 5.0%)."),
-        ("no_access_revisit_proposal", "출입 실패로 닫힌 난방 신고는 더 빨리 다시 들어오고 또 출입 실패로 끝나기 쉬워, 다음 날 재방문과 주소 단위 시범을 제안합니다."),
+        ("no_access_revisit_proposal", "들어가지 못해 닫힌 난방 신고는 다시 신고되는 일이 오히려 적고 복구 확인까지 수개월이 걸려, 확인 전화와 예약 재방문을 제안합니다."),
     ]),
     ("2. 타당성 검토", "해 볼 만한지 자료로 먼저 따져 본 아이디어", [
         ("false_report_feasibility_review", "허위 신고 판별은 신고자·현장 결과가 없어 할 수 없고, 같은 사안의 중복·연속 접수를 묶어 보여 주는 검토 보조가 현실적입니다."),
@@ -70,7 +70,7 @@ EVIDENCE = [
     ]),
     ("종료 기록과 재접수", [
         ("resolution_playbook_report", "자치구 처리 시간 차이는 대부분 업무 구성 차이입니다(브롱크스 11.3 vs 7.2시간 → 맞추면 8.6 vs 8.3시간)."),
-        ("rereport_report", "종결 뒤 7일 안에 약 3분의 1이 다시 접수되고, 출입 실패·중복 종결 뒤에 더 많습니다."),
+        ("rereport_report", "종결 뒤 7일 안에 약 3분의 1이 다시 접수되고, 중복 종결 뒤에 가장 많습니다(난방 출입 실패 결론은 2026-11-28 철회)."),
         ("heat_record_change_report", "2026-01-24부터 HPD가 난방 신고 일부를 열어 두는 기록이 다시 많아져, 7일 지표가 그 시점에 바뀌었습니다."),
     ]),
     ("두 해 검증과 기록 점검", [
@@ -82,7 +82,7 @@ EVIDENCE = [
 st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide")
 # short names for the contents buttons (button text does not wrap); the full title shows on hover
 SHORT = {
-    "heat_priority_proposal": "제안 1: 선제 점검", "no_access_revisit_proposal": "제안 2: 빠른 재방문",
+    "heat_priority_proposal": "제안 1: 선제 점검", "no_access_revisit_proposal": "제안 2: 출입 실패 마무리",
     "false_report_feasibility_review": "허위·오류 신고 검토", "eda_report": "탐색적 분석(EDA)", "population_report": "인구 대비 신고",
     "composition_report": "지역별 유형 구성", "monthly_composition_report": "월별 유형 구성", "repeat_address_report": "같은 주소 반복",
     "repeat_profile_report": "반복 주소의 특성", "building_report": "건물 규모와 난방", "nycha_report": "공공임대주택(NYCHA)",
