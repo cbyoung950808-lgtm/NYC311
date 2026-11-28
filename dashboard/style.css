@@ -318,3 +318,5 @@ tr.hlrow td { background: color-mix(in srgb, var(--s1) 12%, transparent); font-w
 .yearnote { font-size: 13px; line-height: 1.55; color: var(--warn); background: var(--warn-bg); border-radius: 8px; padding: 7px 12px; margin-top: 8px; margin-bottom: 8px; }
 .yearline { font-size: 13px; color: var(--ink2); margin: 8px 0 0; }
 @media (max-width: 640px) { .yearsel { width: 100%; margin: 4px 0; } .yearsel select { flex: 1; } }
+.yearhint { font-size: 11.5px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+@media (max-width: 640px) { .yearhint { display: none; } }

@@ -478,7 +478,7 @@
   // ======================= 2. WHEN =======================
   // ---------- monthly composition (screen 2) ----------
   // Optional view-only merge for the apparent 2026-07-29 reclassification (unconfirmed). Never changes the data or other screens.
-  let MERGE_WS = false;
+  let MERGE_WS = !PREV;   // on by default (review 2026-11-28); the previous year has no renaming
   const MERGE = {};
   [["Water System", "상수도·상수도 유지보수 (통합 보기)"], ["Water Maintenance", "상수도·상수도 유지보수 (통합 보기)"],
    ["Sewer", "하수·하수 유지보수 (통합 보기)"], ["Sewer Maintenance", "하수·하수 유지보수 (통합 보기)"]].forEach(([n, lab]) => { const i = P.indexOf(n); if (i >= 0) MERGE[i] = lab; });
@@ -523,12 +523,12 @@
     return card({ id: "when-mc", q: "달마다 민원 구성이 어떻게 달라지나요?",
       what: `선택한 지역·기관 조건(${esc(selName)})에서, 각 달 신고 중 각 유형이 차지하는 비중입니다. 색은 그 비중이 1년 평균 비중의 몇 배인지입니다. 유형 이름을 누르면 그 유형을 선택합니다.`,
       meta: meta("% (그 달 신고 중 비중) · 색 = 1년 평균 대비 배수", "같은 조건의 1년 전체 비중", `분모 = 그 달의 모든 유형 신고 (일부 시간만 수집된 첫날·마지막 날 포함) · 1년 ${fmtN(N)}건 · 유형 조건은 이 표에서 행 강조로만 씀`),
-      body: (PREV ? "" : `<label class="tgl"><input type="checkbox" id="ws-merge"${MERGE_WS ? " checked" : ""}> 상수도·하수의 이름 변경(2026-07-29) 전후를 합쳐 보기 <small>(이 표에서만, 확인되지 않은 대응)</small></label>`) +
+      body: (PREV ? "" : `<label class="tgl"><input type="checkbox" id="ws-merge"${MERGE_WS ? " checked" : ""}> 상수도·하수의 이름 변경(2026-07-29) 전후를 합쳐 보기 <small>(기본으로 켜짐, 이 표에서만, 확인되지 않은 대응. 끄면 원래 유형 이름대로)</small></label>`) +
         legend([["rgb(42,120,214)", "1년 평균보다 낮음"], ["#f3f3f0", "1년 평균과 같음"], ["rgb(227,73,72)", "1년 평균보다 높음 (색은 0.25~4배로 제한)"]]) + h +
         (topList ? `<h4 class="minih">달마다 가장 두드러진 유형 (200건 이상, 그 달 비중 1% 이상, 1년 대비 1.5배 이상)</h4><ul class="cand">${topList}</ul>` : ""),
       read: `${T.f}구성이 1년 평균과 가장 다른 달은 ${mLabel(dmax)}(D ${(D[dmax] * 100).toFixed(0)}%), 가장 비슷한 달은 ${mLabel(dmin)}(${(D[dmin] * 100).toFixed(0)}%)입니다. ` +
         `${T.w}구성비는 합이 100%라서 한 유형이 늘면 다른 유형의 비중은 자동으로 줄어듭니다(비중이 줄었다고 건수가 준 것은 아님). 특정 달에 크게 튄 칸은 한 주소나 특정 날 때문일 수 있으니 아래 일별 그래프와 3번 화면에서 확인하세요. 위쪽 「기준 연도」로 다른 해의 같은 표를 볼 수 있지만, 두 해만으로 매년 반복되는 계절성이라고 단정할 수는 없습니다.`,
-      more: (PREV ? "<b>지난해에는</b> 상수도·하수·유해 물질의 이름 변경이 없었습니다(옛 이름이 1년 내내 쓰임, reports/revalidation_report.md 5절). 그래서 합쳐 보기 체크 상자를 두지 않았습니다. 아래 설명은 올해 자료에 대한 것입니다.<br>" : "") + `<b>분류 변경으로 보이는 점</b>: 환경보호국(DEP)의 「상수도(Water System)」와 「하수(Sewer)」는 2026-07-29에 신고가 끝나고, 같은 내용(소화전, 누수, 탁한 물 등)이 「상수도 유지보수(Water Maintenance)」·「하수 유지보수(Sewer Maintenance)」로 이어집니다. 그래서 8~10월의 「유지보수」 비중이 높게 나오는 것은 민원 변화가 아니라 이름 변경의 영향입니다. 공식 공지로 확인하지 않았으므로 기본은 원래 유형으로 보여 주고, 위 체크 상자를 켜면 이 표에서만 합쳐 봅니다. 다른 화면과 원자료는 바뀌지 않습니다.<br>` +
+      more: (PREV ? "<b>지난해에는</b> 상수도·하수·유해 물질의 이름 변경이 없었습니다(옛 이름이 1년 내내 쓰임, reports/revalidation_report.md 5절). 그래서 합쳐 보기 체크 상자를 두지 않았습니다. 아래 설명은 올해 자료에 대한 것입니다.<br>" : "") + `<b>분류 변경으로 보이는 점</b>: 환경보호국(DEP)의 「상수도(Water System)」와 「하수(Sewer)」는 2026-07-29에 신고가 끝나고, 같은 내용(소화전, 누수, 탁한 물 등)이 「상수도 유지보수(Water Maintenance)」·「하수 유지보수(Sewer Maintenance)」로 이어집니다. 그래서 8~10월의 「유지보수」 비중이 높게 나오는 것은 민원 변화가 아니라 이름 변경의 영향입니다. 이 표에서는 기본으로 두 이름을 합쳐 보여 주고, 위 체크 상자를 끄면 원래 유형대로 봅니다. 공식 공지로 확인한 대응은 아닙니다. 다른 화면과 원자료는 바뀌지 않습니다.<br>` +
         `구성 차이 D = 0.5 × 합계(|그 달 유형 비중 − 1년 유형 비중|), 모든 유형 사용. 자세한 내용: <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성 보고서</a>` +
         (reclassShown ? "" : "") });
   }
@@ -798,7 +798,7 @@
           tips: k => `<b>${dates[ix[k]]}</b><br>${fmtN(vals[k])}건${(YR.partial_days || []).includes(dates[ix[k]]) ? " (일부 시간만 수집된 날)" : !YR.isFull(dates[ix[k]]) ? " (하루 평균·급증 목록에서 뺀 날)" : ""}`, aria: "일별" }) +
           table(["날짜", "신고 수", "보통의 날 대비", "기간 신고 중 비중"], topd.map(([i, n]) => [dates[i], fmtN(n), med ? `${(n / med).toFixed(1)}배` : "-", pct(n, total)]), { num: [1, 2, 3] }) +
           spikeClues(topd.map(([i]) => dates[i])) : emptyBox(NO_DATA),
-        read: total ? `${T.f}가장 많은 날 하루가 이 기간 신고의 ${pct(topd[0][1], total)}입니다. 하루가 큰 몫을 차지하면 「특정 날의 급증」, 막대가 여러 달 고르게 높으면 「이어지는 패턴」입니다. ${T.w}급증 원인(날씨, 행사, 시스템)은 이 자료로 확인하지 않았습니다.` : "",
+        read: total ? `${T.f}가장 많은 날 하루가 이 기간 신고의 ${pct(topd[0][1], total)}입니다. 하루가 큰 몫을 차지하면 「특정 날의 급증」, 막대가 여러 달 고르게 높으면 「이어지는 패턴」입니다. ${T.w}아래 「그날 무슨 일이 있었나요?」 표는 같은 날의 날씨·휴일·행사를 나란히 보여 줄 뿐이며, 급증의 원인을 확인한 것은 아닙니다.` : "",
         more: `보통의 날 = 하루 전체가 포함된 날들의 하루 신고 수 중앙값. 급증 목록에는 하루 전체가 포함된 날(${FULLTXT})만 씁니다.${BOTH ? " 2025-10-31(지난해 마지막 날)과 2025-11-01(올해 파일은 21:09부터)도 각 해 기준에 따라 뺐습니다." : ""}` });
     }
     $("when-body").innerHTML = c1 + monthCompCard([R.name, st.a >= 0 ? aName(st.a) : ""].filter(Boolean).join(" · ") + (st.x ? " · 집중 주소 제외" : "")) + c2 + (c3 || "") + c4 + weatherCard();
@@ -1251,14 +1251,23 @@
       : { NYPD: "노숙 거처(Encampment) 신고는 2026-10부터 노숙인서비스국(DHS)이 받습니다. 10월에 이 유형이 0건인 것은 업무 이관 때문입니다.",
       DHS: "노숙 거처(Encampment) 신고는 2026-10부터 이 기관만 받습니다(그 전에는 경찰청과 나눠 받음). 10월에 늘어난 것은 업무 이관 때문입니다.",
       DEP: "「상수도」·「하수」·「유해 물질」은 2026-07-28~29에 코드 없는 새 이름(유지보수 등)으로 바뀐 것으로 보입니다(공식 확인 전)." }[A[a]];
+    // recording-method notes (review 2026-11-28): DOB midnight closing times (EDA 4-3), and a high share without a
+    // closing record at the observation end, computed from the shown year's data (rc 1 = open)
+    const openN = sum(rows.filter(r => r[6] === 1)), openPct = N ? openN / N * 100 : 0;
+    const recNotes = [];
+    if (A[a] === "DOB") recNotes.push("종료 시각이 대부분 정확히 자정(00:00)으로 기록됩니다(올해 Closed의 91.8%, 지난해 88.5%). 실제 종료 시각인지, 처리일·일괄 입력일인지 확인되지 않아 처리 시간은 시간 단위가 아니라 날짜 단위로만 읽으세요.");
+    if (N && openPct >= 99.5) recNotes.push(`이 조건의 신고는 관찰 마감 때 모두 종료 기록이 없습니다(${pct(openN, N)}). 처리 시간을 계산할 수 없습니다.`);
+    else if (N && openPct >= 20) recNotes.push(`이 조건의 신고 중 ${pct(openN, N)}가 관찰 마감 때 아직 종료 기록이 없습니다. 종료된 신고만으로 계산한 처리 시간은 실제보다 짧게 나올 수 있습니다.`);
     $("ag-mission").innerHTML = `<b>${esc(aLabel(a))}</b> — ${esc(aMission(a))} <button class="hbtn" data-help="agency:${A[a]}">기관 설명·출처</button>` +
-      (agNote ? `<div class="caution" style="margin-top:6px">${esc(agNote)}</div>` : "");
+      (agNote ? `<div class="caution" style="margin-top:6px">${esc(agNote)}</div>` : "") +
+      recNotes.map(t => `<div class="caution" style="margin-top:6px">기록 방식 · ${esc(t)}</div>`).join("");
     if (!N) { ["ag-prob", "ag-boro", "ag-time"].forEach(id => $(id).innerHTML = emptyBox(NO_DATA)); return; }
     const pCnt = new Map(); rows.forEach(r => pCnt.set(r[3], (pCnt.get(r[3]) || 0) + r[8]));
     const keep = [...pCnt.entries()].sort((x, y) => y[1] - x[1]).slice(0, 7).map(x => x[0]);
     const rest = N - keep.reduce((t, p) => t + pCnt.get(p), 0);
     $("ag-prob").innerHTML = donut(keep.map((p, k) => ({ label: pShort(p), n: pCnt.get(p), color: PAL[k] })).concat(rest > 0 ? [{ label: `기타 ${pCnt.size - keep.length}개 유형`, n: rest, color: GRAY }] : []), { head: "민원 유형" });
-    $("ag-boro").innerHTML = hbars(KB.map(b => ({ label: bLabel(b), value: sum(rows.filter(r => r[1] === b)), color: BCOL[B[b]] })).map(it => Object.assign(it, { valueText: `${fmtN(it.value)} (${pct(it.value, N)})` })), { w: wOf("ag-boro") - 10, labelW: 120, valW: 130, aria: "자치구" });
+    $("ag-boro").innerHTML = hbars(KB.map(b => ({ label: bLabel(b), value: sum(rows.filter(r => r[1] === b)), color: BCOL[B[b]] })).map(it => Object.assign(it, { valueText: `${fmtN(it.value)} (${N ? Math.round(it.value / N * 100) : 0}%)`,
+      tip: `<b>${esc(it.label)}</b><br>${fmtN(it.value)}건 · ${pct(it.value, N)}` })), { w: wOf("ag-boro") - 10, labelW: 100, valW: 150, aria: "자치구" });   // shorter value text so it is not cut in the half-width card
     const tItems = [];
     [-1].concat(KB).forEach(b => { const qb = qGet(AS.m, b, a, -1, AS.x); if (!qb) return;
       tItems.push({ label: b < 0 ? "이 기관 전체" : bLabel(b), hl: b < 0, med: qb[6], p90: qb[7], small: qb[5] < SMALL_N, side: `계산 대상 ${fmtN(qb[5])}건`, sideShort: fmtN(qb[5]),
@@ -1339,8 +1348,8 @@
         ["2026-11-11 00:00 (가정)", "관찰 마감: 이 전에 종료 시각이 있으면 종료로 봄. 기록된 종료 시각이 2026-11-11 03:25에서 끝나서 정함", "7일·30일 종료 기록 없음, 맞춘 비교, 생존 분석, 급증·지연"],
         ["2026-11-12", "원본 파일 날짜. 반복 주소 보고서는 이 날을 기준으로 씀(11-11과 결과 차이 0.01%p 이내)", "반복 주소 보고서"],
         ["2026-11-10 (점검일 끝)", "HPD 난방·온수 위반 기록을 받은 범위 (2025-11-01부터)", "3번 화면 건물 카드"],
-      ]) + `<h4>지원하지 않는 것</h4><ul><li>여러 달을 묶은 기간 선택(백분위수를 정확히 합칠 수 없음)</li><li>주소 순위에서 유형+기간 동시 선택, 세부 지역 단위 주소 순위·처리 시간·요일/시간대</li><li>인구 대비 비율(별도 보고서 참고), 지도, 실시간 자료</li></ul>
-        <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a> · <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성</a> · <a href="../reports/reclass_check_report.md" target="_blank">유형 이름 변경</a> · <a href="../reports/rereport_report.md" target="_blank">재접수·생존 분석</a> · <a href="../reports/weather_report.md" target="_blank">날씨</a> · <a href="../reports/surge_delay_report.md" target="_blank">급증과 지연</a> · <a href="../reports/heat_record_change_report.md" target="_blank">난방 기록 변화</a> · <a href="../reports/building_report.md" target="_blank">건물 규모</a></p>`;
+      ]) + `<h4>지원하지 않는 것</h4><ul><li>여러 달을 묶은 기간 선택(백분위수를 정확히 합칠 수 없음)</li><li>주소 순위에서 유형+기간 동시 선택, 세부 지역 단위 주소 순위·처리 시간·요일/시간대</li><li>인구 대비 비율(<a href="../reports/population_report.md" target="_blank">인구 대비 보고서</a> 참고), 지도, 실시간 자료</li></ul>
+        <p class="note">보고서: <a href="../reports/eda_report.md" target="_blank">EDA</a> · <a href="../reports/composition_report.md" target="_blank">지역별 구성</a> · <a href="../reports/repeat_address_report.md" target="_blank">반복 주소</a> · <a href="../reports/resolution_playbook_report.md" target="_blank">종료 시간 비교</a> · <a href="../reports/monthly_composition_report.md" target="_blank">월별 구성</a> · <a href="../reports/reclass_check_report.md" target="_blank">유형 이름 변경</a> · <a href="../reports/rereport_report.md" target="_blank">재접수·생존 분석</a> · <a href="../reports/weather_report.md" target="_blank">날씨</a> · <a href="../reports/surge_delay_report.md" target="_blank">급증과 지연</a> · <a href="../reports/heat_record_change_report.md" target="_blank">난방 기록 변화</a> · <a href="../reports/building_report.md" target="_blank">건물 규모</a> · <a href="../reports/population_report.md" target="_blank">인구 대비</a> · <a href="../reports/spike_events_review.md" target="_blank">급증일 단서·두 해 보기</a></p>`;
     }
     $("help-body").innerHTML = h; fixLinks($("help-body"));
     if (focusKey) { const el = $("gl-" + focusKey) || $("agc-" + focusKey); if (el) el.scrollIntoView({ block: "start" }); } else $("help-body").scrollTop = 0;
@@ -1399,16 +1408,23 @@
   window.addEventListener("hashchange", () => { const v0 = st.v; fromHash(); if (st.v !== v0) show(st.v); else render(); });
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
   // year selector (header) and the header line for the shown year
+  // footer: the local text mentions this computer's folders; the public site gets its own line
+  if (EMBED && $("foot")) $("foot").innerHTML = `자료: NYC Open Data 311 Service Requests 집계본 (원자료는 포함하지 않음) · 외부 자료 출처는 도움말 「분석 기준」과 각 보고서 · <a href="../reports/eda_report.md" target="_blank">분석 보고서</a>`;
   (function yearUi() {
     const lede = document.querySelector(".lede");
     if (lede) lede.innerHTML = `${esc(YR.label)}${PREV ? " (지난해)" : BOTH ? " (두 해 합쳐 보기)" : ""} · 기본 분석 대상 신고 ${fmtN(D.ref.eda_overview.rows_base)}건 · 실제 사건이 아닌 <b>접수된 신고 기록</b>입니다`;
     const bar = document.querySelector(".helpbar");
     if (bar && (YR.hasPrev || YR.hasBoth) && !$("f-y")) {
       const lab = document.createElement("label"); lab.className = "yearsel";
-      lab.innerHTML = `<span>기준 연도</span><select id="f-y" aria-label="기준 연도"><option value="cur">올해 2025-11 ~ 2026-10</option><option value="prev">지난해 2024-11 ~ 2025-10</option>${YR.hasBoth ? '<option value="both">두 해 합쳐 보기 2024-11 ~ 2026-10</option>' : ""}</select>`;
+      lab.innerHTML = `<span>기준 연도</span><select id="f-y" aria-label="기준 연도"><option value="cur">올해 2025-11 ~ 2026-10</option><option value="prev">지난해 2024-11 ~ 2025-10</option>${YR.hasBoth ? '<option value="both">두 해 합쳐 보기 2024-11 ~ 2026-10</option>' : ""}</select><small class="yearhint" title="모든 화면을 고른 기간의 자료로 다시 그립니다">바꾸면 화면을 다시 불러옵니다(몇 초)</small>`;
       bar.insertBefore(lab, bar.firstChild);
       $("f-y").value = YR.key;
-      $("f-y").addEventListener("change", e => { if (e.target.value !== YR.key) switchYear(e.target.value); });
+      $("f-y").addEventListener("change", e => {
+        if (e.target.value === YR.key) return;
+        const l = document.querySelector(".lede"); if (l) l.textContent = "선택한 기간의 자료를 불러오는 중…";
+        e.target.disabled = true;
+        setTimeout(() => switchYear(e.target.value), 30);   // let the message paint before the reload
+      });
     }
     if (BOTH) {
       document.body.classList.add("year-prev");

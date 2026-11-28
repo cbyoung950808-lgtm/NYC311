@@ -22,6 +22,7 @@ TITLES = {
     "place_centred_report": "장소 주변의 신고: 무엇이, 언제 더 많은가",
     "repeat_profile_report": "반복 신고 주소의 건물·주변 특성",
     "nycha_report": "공공임대주택(NYCHA)과 311 신고",
+    "population_report": "인구 대비 신고: 자치구·세부 지역",
     "revalidation_report": "두 해 비교 재검증",
     "year_dashboard_report": "대시보드 지난해 화면: 같은 방식으로 계산한 지난해 결과",
     "spike_events_review": "급증일의 단서, 행사 카드 검증, 두 해 합쳐 보기",
@@ -31,15 +32,31 @@ st.set_page_config(page_title="분석 보고서", page_icon="📄", layout="wide
 names = [n for n in TITLES if (REP / f"{n}.md").exists()]
 want = st.query_params.get("r", names[0])
 idx = names.index(want) if want in names else 0
+if want not in names:
+    st.warning(f"요청한 보고서({want})를 찾지 못해 첫 보고서를 보여 줍니다.")
 name = st.selectbox("보고서", names, index=idx, format_func=lambda n: TITLES[n])
 st.query_params["r"] = name
 
 IMG = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)\s*$")
+CODE = re.compile(r"(`[^`]*`)")
+
+
+def plain_tilde(line):
+    """Ranges such as 1~7 must not become strikethrough (Streamlit markdown strikes text between two ~).
+    Escape single ~ outside inline code; the report files themselves are not changed (2026-11-28)."""
+    return "".join(part if part.startswith("`") else re.sub(r"(?<![~\\])~(?!~)", r"\\~", part) for part in CODE.split(line))
+
+
 buf = []
 def flush():
     if buf:
         st.markdown("\n".join(buf)); buf.clear()
+in_fence = False
 for line in (REP / f"{name}.md").read_text(encoding="utf-8").splitlines():
+    if line.strip().startswith("```"):
+        in_fence = not in_fence
+    elif not in_fence:
+        line = plain_tilde(line)
     m = IMG.match(line.strip())
     if m:
         flush()

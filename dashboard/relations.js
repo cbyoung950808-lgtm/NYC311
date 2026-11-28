@@ -225,10 +225,10 @@
 
       <h3 class="block-h"><span class="bn">예시 2</span>교란 요인(시간): 「1월에 처리가 가장 느렸다?」</h3>
       <div class="grid2">
-        <figure class="card"><figcaption>월별 HPD 비중 vs 전체 처리 시간 중앙값<span class="sub">12개월 · ${window.YEAR && window.YEAR.key !== "cur" ? (window.YEAR.key === "both" ? "두 해 자료로 같은 방식 계산(24개월)" : "지난해 자료로 같은 방식 계산") : "기존 EDA 표 23"} · 점선 = NYPD 중앙값 평균</span></figcaption><div id="d1-s3"></div></figure>
+        <figure class="card"><figcaption>월별 HPD 비중 vs 전체 처리 시간 중앙값<span class="sub">12개월 · ${window.YEAR && window.YEAR.key !== "cur" ? (window.YEAR.key === "both" ? "두 해 자료로 같은 방식 계산(24개월)" : "지난해 자료로 같은 방식 계산") : "탐색 분석 보고서의 월별 표"} · 점선 = NYPD 중앙값 평균</span></figcaption><div id="d1-s3"></div></figure>
         <div class="card readbox">
           <p>${tag.f}HPD 비중이 높은 달일수록 전체 중앙값이 깁니다(ρ = ${spearman(t23.map(r => +r.hpd_share_pct), t23.map(r => +r.med_all)).rho.toFixed(2)}). 같은 기간 NYPD 중앙값은 매달 ${Math.min(...t23.map(r => +r.med_nypd))}~${Math.max(...t23.map(r => +r.med_nypd))}시간으로 거의 같습니다.</p>
-          ${window.YEAR && window.YEAR.key !== "cur" ? "" : `<p>${tag.f}월별 유형 구성을 연간 구성으로 고정하면 월별 중앙값의 차이가 4.93배에서 1.23배로 줄어듭니다(EDA 3-4절).</p>`}
+          ${window.YEAR && window.YEAR.key !== "cur" ? "" : `<p>${tag.f}월별 유형 구성을 연간 구성으로 고정하면 월별 중앙값의 차이가 4.93배에서 1.23배로 줄어듭니다(<a href="../reports/eda_report.md" target="_blank">탐색 분석 보고서</a>).</p>`}
           <p>${tag.m}「1월에 처리가 느려졌다」기보다 「1월에 오래 걸리는 유형이 많이 들어왔다」에 가깝습니다. 다만 처리 속도가 전혀 변하지 않았다는 증명은 아닙니다.</p>
         </div>
       </div>
